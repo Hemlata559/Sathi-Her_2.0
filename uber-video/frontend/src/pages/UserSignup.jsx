@@ -11,6 +11,8 @@ const UserSignup = () => {
   const [ firstName, setFirstName ] = useState('')
   const [ lastName, setLastName ] = useState('')
   const [ userData, setUserData ] = useState({})
+  const [gender, setGender] = useState('female');
+
 
   const navigate = useNavigate()
 
@@ -29,7 +31,9 @@ const UserSignup = () => {
         lastname: lastName
       },
       email: email,
-      password: password
+      password: password,
+      gender: gender
+
     }
 
     const response = await axios.post(`${import.meta.env.VITE_BASE_URL}/users/register`, newUser)
@@ -105,6 +109,16 @@ const UserSignup = () => {
               required type="password"
               placeholder='password'
             />
+            <h3 className='text-lg font-medium mb-2'>Gender</h3>
+            <select
+              value={gender}
+              onChange={(e) => setGender(e.target.value)}
+              className='bg-[#eeeeee] mb-7 rounded-lg px-4 py-2 border w-full text-lg'
+            >
+              <option value="female">Female</option>
+            </select>
+
+           
 
             <button
               className='bg-[#111] text-white font-semibold mb-3 rounded-lg px-4 py-2 w-full text-lg placeholder:text-base'

@@ -1,161 +1,139 @@
 const rideModel = require('../models/ride.model');
 const mapService = require('./maps.service');
-const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 
-async function getFare(pickup, destination) {
+/* --------------------------------------------------
+   OTP GENERATOR – used for meeting point verification
+-------------------------------------------------- */
+function generateOtp(length = 6) {
+    return crypto.randomInt(10 ** (length - 1), 10 ** length).toString();
+}
 
+/* --------------------------------------------------
+   OPTIONAL: DISTANCE / TIME CALCULATION
+   (Safety score, route overlap etc. future use)
+-------------------------------------------------- */
+async function getDistanceInfo(pickup, destination) {
     if (!pickup || !destination) {
         throw new Error('Pickup and destination are required');
     }
-
-    const distanceTime = await mapService.getDistanceTime(pickup, destination);
-
-    const baseFare = {
-        auto: 30,
-        car: 50,
-        moto: 20
-    };
-
-    const perKmRate = {
-        auto: 10,
-        car: 15,
-        moto: 8
-    };
-
-    const perMinuteRate = {
-        auto: 2,
-        car: 3,
-        moto: 1.5
-    };
-
-
-
-    const fare = {
-        auto: Math.round(baseFare.auto + ((distanceTime.distance.value / 1000) * perKmRate.auto) + ((distanceTime.duration.value / 60) * perMinuteRate.auto)),
-        car: Math.round(baseFare.car + ((distanceTime.distance.value / 1000) * perKmRate.car) + ((distanceTime.duration.value / 60) * perMinuteRate.car)),
-        moto: Math.round(baseFare.moto + ((distanceTime.distance.value / 1000) * perKmRate.moto) + ((distanceTime.duration.value / 60) * perMinuteRate.moto))
-    };
-
-    return fare;
-
-
+    return await mapService.getDistanceTime(pickup, destination);
 }
 
-module.exports.getFare = getFare;
+module.exports.getDistanceInfo = getDistanceInfo;
 
 
-function getOtp(num) {
-    function generateOtp(num) {
-        const otp = crypto.randomInt(Math.pow(10, num - 1), Math.pow(10, num)).toString();
-        return otp;
-    }
-    return generateOtp(num);
-}
-
-
+/* --------------------------------------------------
+   CREATE JOURNEY REQUEST
+   - Only verified female users allowed
+   - Generates meeting OTP
+-------------------------------------------------- */
 module.exports.createRide = async ({
-    user, pickup, destination, vehicleType
+    user,
+    pickup,
+    destination,
+    departureTime,
+    mode
 }) => {
-    if (!user || !pickup || !destination || !vehicleType) {
+
+    if (!user || !pickup || !destination || !departureTime || !mode) {
         throw new Error('All fields are required');
     }
 
-    const fare = await getFare(pickup, destination);
+    // safety rule – women only
+    if (user.gender !== 'female' || !user.isVerified) {
+        throw new Error('Only verified female users allowed');
+    }
 
-
-
-    const ride = rideModel.create({
-        user,
+    const ride = await rideModel.create({
+        user: user._id,
         pickup,
         destination,
-        otp: getOtp(6),
-        fare: fare[ vehicleType ]
-    })
+        departureTime,
+        mode,
+        status: 'pending',
+        meetOtp: generateOtp(6),
+        meetOtpExpiry: Date.now() + 20 * 60 * 1000 // 20 min
+    });
 
     return ride;
-}
+};
 
-module.exports.confirmRide = async ({
-    rideId, captain
-}) => {
-    if (!rideId) {
-        throw new Error('Ride id is required');
-    }
 
-    await rideModel.findOneAndUpdate({
-        _id: rideId
-    }, {
-        status: 'accepted',
-        captain: captain._id
-    })
+/* --------------------------------------------------
+   VERIFY MEETING OTP
+   - Used at physical meeting point
+-------------------------------------------------- */
+module.exports.verifyMeetingOtp = async ({ rideId, otp }) => {
 
-    const ride = await rideModel.findOne({
-        _id: rideId
-    }).populate('user').populate('captain').select('+otp');
-
-    if (!ride) {
-        throw new Error('Ride not found');
-    }
-
-    return ride;
-
-}
-
-module.exports.startRide = async ({ rideId, otp, captain }) => {
     if (!rideId || !otp) {
-        throw new Error('Ride id and OTP are required');
+        throw new Error('Ride id and OTP required');
     }
 
-    const ride = await rideModel.findOne({
-        _id: rideId
-    }).populate('user').populate('captain').select('+otp');
+    const ride = await rideModel.findById(rideId).populate('user');
 
-    if (!ride) {
-        throw new Error('Ride not found');
-    }
+    if (!ride) throw new Error('Journey not found');
 
-    if (ride.status !== 'accepted') {
-        throw new Error('Ride not accepted');
-    }
+    if (Date.now() > ride.meetOtpExpiry)
+        throw new Error('OTP expired');
 
-    if (ride.otp !== otp) {
+    if (ride.meetOtp !== otp)
         throw new Error('Invalid OTP');
-    }
 
-    await rideModel.findOneAndUpdate({
-        _id: rideId
-    }, {
-        status: 'ongoing'
-    })
+    ride.meetVerified = true;
+    ride.meetOtp = null;
+    ride.meetOtpExpiry = null;
+
+    await ride.save();
+
+    return true;
+};
+
+
+/* --------------------------------------------------
+   START JOURNEY
+   - Both companions must be verified
+-------------------------------------------------- */
+module.exports.startJourney = async ({ rideId }) => {
+
+    const ride = await rideModel.findById(rideId)
+        .populate('user')
+        .populate('matchedWith');
+
+    if (!ride) throw new Error('Journey not found');
+
+    if (!ride.meetVerified)
+        throw new Error('Meeting verification pending');
+
+    if (ride.status !== 'matched')
+        throw new Error('Journey not ready');
+
+    ride.status = 'ongoing';
+    ride.startedAt = new Date();
+
+    await ride.save();
 
     return ride;
-}
+};
 
-module.exports.endRide = async ({ rideId, captain }) => {
-    if (!rideId) {
-        throw new Error('Ride id is required');
-    }
 
-    const ride = await rideModel.findOne({
-        _id: rideId,
-        captain: captain._id
-    }).populate('user').populate('captain').select('+otp');
+/* --------------------------------------------------
+   END JOURNEY
+   - Dual confirmation can be added later
+-------------------------------------------------- */
+module.exports.endJourney = async ({ rideId }) => {
 
-    if (!ride) {
-        throw new Error('Ride not found');
-    }
+    const ride = await rideModel.findById(rideId);
 
-    if (ride.status !== 'ongoing') {
-        throw new Error('Ride not ongoing');
-    }
+    if (!ride) throw new Error('Journey not found');
 
-    await rideModel.findOneAndUpdate({
-        _id: rideId
-    }, {
-        status: 'completed'
-    })
+    if (ride.status !== 'ongoing')
+        throw new Error('Journey not active');
+
+    ride.status = 'completed';
+    ride.completedAt = new Date();
+
+    await ride.save();
 
     return ride;
-}
-
+};

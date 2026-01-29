@@ -17,6 +17,12 @@
 .logo.react:hover {
   filter: drop-shadow(0 0 2em #61dafbaa);
 }
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
 
 @keyframes logo-spin {
   from {

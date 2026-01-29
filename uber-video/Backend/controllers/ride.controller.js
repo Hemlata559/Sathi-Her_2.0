@@ -4,130 +4,102 @@ const mapService = require('../services/maps.service');
 const { sendMessageToSocketId } = require('../socket');
 const rideModel = require('../models/ride.model');
 
-
+/* --------------------------------------------------
+   CREATE JOURNEY REQUEST
+-------------------------------------------------- */
 module.exports.createRide = async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
     }
 
-    const { userId, pickup, destination, vehicleType } = req.body;
+    const { pickup, destination, departureTime, mode } = req.body;
 
     try {
-        const ride = await rideService.createRide({ user: req.user._id, pickup, destination, vehicleType });
-        res.status(201).json(ride);
+        const ride = await rideService.createRide({
+            user: req.user,
+            pickup,
+            destination,
+            departureTime,
+            mode
+        });
 
-        const pickupCoordinates = await mapService.getAddressCoordinate(pickup);
-
-
-
-        const captainsInRadius = await mapService.getCaptainsInTheRadius(pickupCoordinates.ltd, pickupCoordinates.lng, 2);
-
-        ride.otp = ""
-
-        const rideWithUser = await rideModel.findOne({ _id: ride._id }).populate('user');
-
-        captainsInRadius.map(captain => {
-
-            sendMessageToSocketId(captain.socketId, {
-                event: 'new-ride',
-                data: rideWithUser
-            })
-
-        })
+        return res.status(201).json(ride);
 
     } catch (err) {
-
         console.log(err);
         return res.status(500).json({ message: err.message });
     }
-
 };
 
-module.exports.getFare = async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
-    }
 
-    const { pickup, destination } = req.query;
+/* --------------------------------------------------
+   VERIFY MEETING OTP
+   Used when companions meet physically
+-------------------------------------------------- */
+module.exports.verifyMeetingOtp = async (req, res) => {
+    const { rideId, otp } = req.body;
 
     try {
-        const fare = await rideService.getFare(pickup, destination);
-        return res.status(200).json(fare);
+        const verified = await rideService.verifyMeetingOtp({ rideId, otp });
+
+        return res.status(200).json({
+            message: 'Meeting verified',
+            verified
+        });
+
     } catch (err) {
-        return res.status(500).json({ message: err.message });
+        return res.status(400).json({ message: err.message });
     }
-}
+};
 
-module.exports.confirmRide = async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
-    }
 
+/* --------------------------------------------------
+   START JOURNEY
+   Both companions verified → tracking ON
+-------------------------------------------------- */
+module.exports.startJourney = async (req, res) => {
     const { rideId } = req.body;
 
     try {
-        const ride = await rideService.confirmRide({ rideId, captain: req.captain });
+        const ride = await rideService.startJourney({ rideId });
 
-        sendMessageToSocketId(ride.user.socketId, {
-            event: 'ride-confirmed',
-            data: ride
-        })
-
-        return res.status(200).json(ride);
-    } catch (err) {
-
-        console.log(err);
-        return res.status(500).json({ message: err.message });
-    }
-}
-
-module.exports.startRide = async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
-    }
-
-    const { rideId, otp } = req.query;
-
-    try {
-        const ride = await rideService.startRide({ rideId, otp, captain: req.captain });
-
-        console.log(ride);
-
-        sendMessageToSocketId(ride.user.socketId, {
-            event: 'ride-started',
-            data: ride
-        })
+        // notify matched companion
+        if (ride.matchedWith?.socketId) {
+            sendMessageToSocketId(ride.matchedWith.socketId, {
+                event: 'journey-started',
+                data: ride
+            });
+        }
 
         return res.status(200).json(ride);
+
     } catch (err) {
-        return res.status(500).json({ message: err.message });
+        return res.status(400).json({ message: err.message });
     }
-}
+};
 
-module.exports.endRide = async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
-    }
 
+/* --------------------------------------------------
+   END JOURNEY
+-------------------------------------------------- */
+module.exports.endJourney = async (req, res) => {
     const { rideId } = req.body;
 
     try {
-        const ride = await rideService.endRide({ rideId, captain: req.captain });
+        const ride = await rideService.endJourney({ rideId });
 
-        sendMessageToSocketId(ride.user.socketId, {
-            event: 'ride-ended',
-            data: ride
-        })
-
-
+        // notify companion
+        if (ride.matchedWith?.socketId) {
+            sendMessageToSocketId(ride.matchedWith.socketId, {
+                event: 'journey-ended',
+                data: ride
+            });
+        }
 
         return res.status(200).json(ride);
+
     } catch (err) {
-        return res.status(500).json({ message: err.message });
-    } s
-}
+        return res.status(400).json({ message: err.message });
+    }
+};
