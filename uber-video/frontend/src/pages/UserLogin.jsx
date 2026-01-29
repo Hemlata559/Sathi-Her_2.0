@@ -43,7 +43,10 @@ const UserLogin = () => {
   return (
     <div className='p-7 h-screen flex flex-col justify-between'>
       <div>
-        <img className='w-16 mb-10' src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQYQy-OIkA6In0fTvVwZADPmFFibjmszu2A0g&s" alt="" />
+        <h3 className="text-4xl font-extrabold tracking-tight text-black">
+  Sathi<span className="text-gray-500">-Her</span>
+</h3>
+
 
         <form onSubmit={submitHandler}>
           <h3 className='text-lg font-medium mb-2'>What's your email</h3>

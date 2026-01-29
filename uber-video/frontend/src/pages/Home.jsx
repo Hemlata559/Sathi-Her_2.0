@@ -4,6 +4,8 @@ import gsap from 'gsap';
 import axios from 'axios';
 import 'remixicon/fonts/remixicon.css'
 import LocationSearchPanel from '../components/LocationSearchPanel';
+import logo from '../assets/logo.png'
+
 import VehiclePanel from '../components/VehiclePanel';
 import ConfirmRide from '../components/ConfirmRide';
 import LookingForDriver from '../components/LookingForDriver';
@@ -201,15 +203,17 @@ const Home = () => {
 
     return (
         <div className='h-[100dvh] relative overflow-hidden'>
-            <img className='w-16 absolute left-5 top-5' src="https://upload.wikimedia.org/wikipedia/commons/c/cc/Uber_logo_2018.png" alt="" />
-            <div className='h-screen w-screen overflow-hidden'>
+            <img className='w-16 absolute left-5 top-5' src={logo} alt="App logo" />
+            <div className='w-screen overflow-hidden'>
+        
+
                 {/* image for temporary use  */}
                 <div className="w-full h-[60vh] relative overflow-hidden z-0">
                     <LiveTracking />
                 </div>
                 
             </div>
-            <div className=' flex flex-col justify-end h-[100dvh] absolute top-0 w-full'>
+            <div className=' flex flex-col justify-end fixed bottom-0 w-full h-[100dvh]'>
                 <div className='min-h-[35%] p-6 bg-white relative flex flex-col justify-between z-20'>
                     <h5 ref={panelCloseRef} onClick={() => {
                         setPanelOpen(false)
