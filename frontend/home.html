@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Sathi-Her Home</title>
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<nav class="navbar">
+    <div class="logo">Sathi-Her</div>
+
+    <div class="nav-links">
+        <a href="/home.html">Home</a>
+        <a href="/plan.html">Plan Journey</a>
+        <a href="/track.html">Track</a>
+        <a href="/">Login</a>
+        <button class="register-btn" onclick="logout()">Logout</button>
+    </div>
+</nav>
+
+<div class="main-container">
+  <div class="login-card">
+      <h2>Welcome to Sathi-Her Dashboard</h2>
+      <p>You are logged in successfully.</p>
+  </div>
+</div>
+
+<script>
+function logout(){
+    localStorage.removeItem("userPhone");
+    window.location.href = "/";
+}
+</script>
+
+</body>
+</html>

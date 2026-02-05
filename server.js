@@ -1,6 +1,7 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const path = require("path");
 
 const app = express();
 
@@ -13,15 +14,17 @@ mongoose.connect(
 )
 .then(() => console.log("MongoDB connected"))
 .catch(err => console.log(err));
+
 // Routes
 const authRoutes = require("./routes/auth");
 app.use("/api/auth", authRoutes);
 
+// Serve frontend
+app.use(express.static(path.join(__dirname, "frontend")));
 
 app.get("/", (req, res) => {
-  res.send("Server running");
+  res.sendFile(path.join(__dirname, "frontend", "index.html"));
 });
-
 
 app.listen(5000, () => {
   console.log("Server running on port 5000");
