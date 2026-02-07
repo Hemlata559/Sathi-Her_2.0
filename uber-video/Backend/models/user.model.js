@@ -105,6 +105,19 @@ const userSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 /* ----------------------------------
+   PRE-SAVE HOOK - Remove null mobile
+---------------------------------- */
+userSchema.pre('save', function (next) {
+    if (!this.mobile || this.mobile.trim() === '') {
+        this.mobile = undefined; // Don't store null - use undefined instead
+    }
+    if (!this.email || this.email.trim() === '') {
+        this.email = undefined;
+    }
+    next();
+});
+
+/* ----------------------------------
    AUTH TOKEN GENERATION
 ---------------------------------- */
 userSchema.methods.generateAuthToken = function () {

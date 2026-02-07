@@ -13,7 +13,10 @@ const chatRoutes = require('./routes/chat.routes');
 
 connectToDb();
 
-app.use(cors());
+app.use(cors({
+    origin: ['http://localhost:5173', 'http://localhost:3000', 'http://localhost'],
+    credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
