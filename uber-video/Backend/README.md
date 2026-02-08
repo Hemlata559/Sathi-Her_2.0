@@ -1,3 +1,67 @@
+# Backend
+
+Author: Hemlata Yadav
+
+Express + Mongo backend for the app.
+
+Run:
+
+```bash
+npm install
+nodemon server.js
+```
+
+**Recent changes (summary)**
+
+- Added robust user registration handling to avoid duplicate-key errors when `email` or `mobile` are empty or missing.
+- Introduced a database cleanup script at `scripts/cleanup-db.js` to drop problematic user indexes and optionally clear user documents when the DB contains multiple NULL/empty values that violate unique indexes.
+- Updated `models/user.model.js` with a `pre('save')` hook to convert empty-string `email`/`mobile` to `undefined`, preventing Mongo from treating them as duplicate `null` values for unique indexes.
+- Improved `controllers/user.controller.js` registration flow:
+  - Trims and normalizes `email` and `mobile` before querying.
+  - Builds a conditional `$or` query only with fields actually provided (prevents false duplicate detections).
+  - Returns friendly errors for Mongo duplicate-key (E11000) situations.
+- Tightened CORS in `app.js` to explicitly allow the frontend origins and send credentials.
+
+If you pulled recent changes and saw registration failures with errors like `E11000 duplicate key error collection: ... index: phone_1 dup key: { phone: null }`, follow the cleanup instructions below.
+
+**Why the cleanup script exists**
+
+During development some user documents were created with `null` or empty values for fields that have unique indexes (like `email`, `mobile`/`phone`). MongoDB treats multiple `null` values as duplicates for non-sparse unique indexes, causing registration to fail for new users. The cleanup script helps remove those problematic indexes and/or documents so the application can recreate correct indexes and operate normally.
+
+**scripts/cleanup-db.js**
+
+- Location: `scripts/cleanup-db.js`
+- Purpose: Connects to the database, lists indexes on the `users` collection, drops non-_id_ indexes (for recovery), and deletes all documents in the `users` collection. Use with caution — it will remove user data.
+
+Run the script (from the `Backend` folder):
+
+```bash
+node scripts/cleanup-db.js
+```
+
+Notes:
+
+- The script is intended for recovery during development only. Do NOT run it against production data unless you understand the consequences.
+- After running the script, restart the backend (e.g., `nodemon server.js`). The application will recreate required indexes where appropriate.
+
+**Important implementation notes**
+
+- `models/user.model.js` now sets empty `email`/`mobile` fields to `undefined` before saving so Mongoose/MongoDB will not store `null` values that conflict with unique indexes.
+- `controllers/user.controller.js` registration routine:
+  - Uses `express-validator` to validate input.
+  - Trims `email` and `mobile` values and constructs an `$or` query only from provided fields to check existing users.
+  - Hashes passwords and creates users with only the provided contact fields.
+  - Catches Mongo duplicate-key errors (E11000) and returns a clear 400 response explaining which field is duplicated.
+- CORS in `app.js` is configured to allow local frontend development origins and send credentials (cookies). Ensure your frontend `VITE_BASE_URL` matches one of the allowed origins.
+
+**Package type warning**
+
+You may see a Node warning about `MODULE_TYPELESS_PACKAGE_JSON`. If the project is meant to use ESM (import/export), add `"type": "module"` to `package.json`. If you prefer CommonJS, keep it as-is and ensure imports/exports match the chosen module system.
+
+**Git & workflow notes**
+
+- If you pull remote changes and encounter rebase conflicts (for example in `frontend/src/pages/UserSignup.jsx`), resolve the conflict, `git add` the file, then run `git rebase --continue` and `git push`.
+
 # Backend API Documentation
 
 ## `/users/register` Endpoint
@@ -25,7 +89,7 @@ The request body should be in JSON format and include the following fields:
 - `user` (object):
   - `fullname` (object).
     - `firstname` (string): User's first name (minimum 3 characters).
-    - `lastname` (string): User's last name (minimum 3 characters).   
+    - `lastname` (string): User's last name (minimum 3 characters).
   - `email` (string): User's email address (must be a valid email).
   - `password` (string): User's password (minimum 6 characters).
 - `token` (String): JWT Token
@@ -56,7 +120,7 @@ The request body should be in JSON format and include the following fields:
 - `user` (object):
   - `fullname` (object).
     - `firstname` (string): User's first name (minimum 3 characters).
-    - `lastname` (string): User's last name (minimum 3 characters).   
+    - `lastname` (string): User's last name (minimum 3 characters).
   - `email` (string): User's email address (must be a valid email).
   - `password` (string): User's password (minimum 6 characters).
 - `token` (String): JWT Token
@@ -81,10 +145,8 @@ Requires a valid JWT token in the Authorization header:
 - `user` (object):
   - `fullname` (object).
     - `firstname` (string): User's first name (minimum 3 characters).
-    - `lastname` (string): User's last name (minimum 3 characters).   
+    - `lastname` (string): User's last name (minimum 3 characters).
   - `email` (string): User's email address (must be a valid email).
-
-
 
 ## `/users/logout` Endpoint
 
@@ -103,7 +165,7 @@ Requires a valid JWT token in the Authorization header or cookie:
 - `user` (object):
   - `fullname` (object).
     - `firstname` (string): User's first name (minimum 3 characters).
-    - `lastname` (string): User's last name (minimum 3 characters).   
+    - `lastname` (string): User's last name (minimum 3 characters).
   - `email` (string): User's email address (must be a valid email).
   - `password` (string): User's password (minimum 6 characters).
 - `token` (String): JWT Token## `/captains/register` Endpoint
@@ -132,7 +194,6 @@ The request body should be in JSON format and include the following fields:
   - `vehicleType` (string, required): Type of vehicle (must be 'car', 'motorcycle', or 'auto')
 
 ### Example Response
-
 
 ## `/captains/register` Endpoint
 
@@ -164,7 +225,7 @@ The request body should be in JSON format and include the following fields:
 - `captain` (object):
   - `fullname` (object).
     - `firstname` (string): Captain's first name (minimum 3 characters).
-    - `lastname` (string): Captain's last name (minimum 3 characters).   
+    - `lastname` (string): Captain's last name (minimum 3 characters).
   - `email` (string): Captain's email address (must be a valid email).
   - `password` (string): Captain's password (minimum 6 characters).
   - `vehicle` (object):
@@ -200,7 +261,7 @@ The request body should be in JSON format and include the following fields:
 - `captain` (object):
   - `fullname` (object).
     - `firstname` (string): Captain's first name (minimum 3 characters).
-    - `lastname` (string): Captain's last name (minimum 3 characters).   
+    - `lastname` (string): Captain's last name (minimum 3 characters).
   - `email` (string): Captain's email address (must be a valid email).
   - `password` (string): Captain's password (minimum 6 characters).
   - `vehicle` (object):
@@ -230,7 +291,7 @@ Requires a valid JWT token in the Authorization header:
 - `captain` (object):
   - `fullname` (object).
     - `firstname` (string): Captain's first name (minimum 3 characters).
-    - `lastname` (string): Captain's last name (minimum 3 characters).   
+    - `lastname` (string): Captain's last name (minimum 3 characters).
   - `email` (string): Captain's email address (must be a valid email).
   - `vehicle` (object):
     - `color` (string): Vehicle color.
@@ -255,7 +316,6 @@ Requires a valid JWT token in the Authorization header or cookie.
 ### Example Response
 
 - `message` (string): Logout successfully.
-
 
 ## `/maps/get-coordinates` Endpoint
 
@@ -428,7 +488,6 @@ The request body should be in JSON format and include the following fields:
 }
 ```
 
-
 ## `/rides/get-fare` Endpoint
 
 ### Description
@@ -444,7 +503,7 @@ Retrieves the fare estimate for a ride between the provided pickup and destinati
 Requires a valid JWT token in the Authorization header:
 `Authorization:
 
- Bear
+Bear
 
 er <token>`
 
