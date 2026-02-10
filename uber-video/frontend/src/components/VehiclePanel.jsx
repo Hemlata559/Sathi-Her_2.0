@@ -6,7 +6,7 @@ const VehiclePanel = (props) => {
             <h5 className='p-1 text-center w-[93%] absolute top-0' onClick={() => {
                 props.setVehiclePanel(false)
             }}><i className="text-3xl text-gray-200 ri-arrow-down-wide-line"></i></h5>
-            <h3 className='text-2xl font-semibold mb-3'>Choose Companion Type</h3>
+            <h3 className='text-2xl font-semibold mb-3'>Choose Companion </h3>
             
             {/* Companion Type 1 */}
             <div onClick={() => {
@@ -15,13 +15,13 @@ const VehiclePanel = (props) => {
             }} className='flex border-2 border-pink-200 hover:border-pink-500 active:border-pink-700 mb-2 rounded-xl w-full p-3 items-center justify-between bg-pink-50 cursor-pointer transition'>
                 <i className="ri-team-fill text-pink-500 text-3xl"></i>
                 <div className='ml-2 w-1/2'>
-                    <h4 className='font-semibold text-base'>Group Activity</h4>
-                    <h5 className='font-medium text-xs text-gray-600'>2-4 people</h5>
-                    <p className='font-normal text-xs text-gray-600'>Shopping, Cafe, Events</p>
+                    <h4 className='font-semibold text-base'>Alia Rajput</h4>
+                    <h5 className='font-medium text-xs text-gray-600'>Aadhar Verified User</h5>
+                    <p className='font-normal text-xs text-gray-600'>Rating: 3.5</p>
                 </div>
                 <div className='text-right'>
-                    <h2 className='text-sm font-semibold text-green-600'>₹{props.fare.car}</h2>
-                    <p className='text-xs text-gray-600'>Per person</p>
+                    <h2 className='text-sm font-semibold text-green-600'>*{props.fare.car}</h2>
+                    <p className='text-xs text-gray-600'>connect</p>
                 </div>
             </div>
 
@@ -32,13 +32,13 @@ const VehiclePanel = (props) => {
             }} className='flex border-2 border-pink-200 hover:border-pink-500 active:border-pink-700 mb-2 rounded-xl w-full p-3 items-center justify-between bg-pink-50 cursor-pointer transition'>
                 <i className="ri-user-follow-fill text-blue-500 text-3xl"></i>
                 <div className='ml-2 w-1/2'>
-                    <h4 className='font-semibold text-base'>Close Friend</h4>
-                    <h5 className='font-medium text-xs text-gray-600'>1-2 people</h5>
-                    <p className='font-normal text-xs text-gray-600'>Personal activities</p>
+                    <h4 className='font-semibold text-base'>Akshita Negi</h4>
+                    <h5 className='font-medium text-xs text-gray-600'>Aadhar Verified User</h5>
+                    <p className='font-normal text-xs text-gray-600'>Rating: 4.5</p>
                 </div>
                 <div className='text-right'>
-                    <h2 className='text-sm font-semibold text-green-600'>₹{props.fare.moto}</h2>
-                    <p className='text-xs text-gray-600'>Per person</p>
+                    <h2 className='text-sm font-semibold text-green-600'>*{props.fare.moto}</h2>
+                    <p className='text-xs text-gray-600'>connect</p>
                 </div>
             </div>
 
@@ -49,13 +49,13 @@ const VehiclePanel = (props) => {
             }} className='flex border-2 border-pink-200 hover:border-pink-500 active:border-pink-700 mb-2 rounded-xl w-full p-3 items-center justify-between bg-pink-50 cursor-pointer transition'>
                 <i className="ri-team-line text-purple-500 text-3xl"></i>
                 <div className='ml-2 w-1/2'>
-                    <h4 className='font-semibold text-base'>Adventure Partner</h4>
-                    <h5 className='font-medium text-xs text-gray-600'>1-3 people</h5>
-                    <p className='font-normal text-xs text-gray-600'>Hiking, Sports, Travel</p>
+                    <h4 className='font-semibold text-base'>Himanshi Sharma</h4>
+                    <h5 className='font-medium text-xs text-gray-600'>Aadhar Verified User</h5>
+                    <p className='font-normal text-xs text-gray-600'>Rating: 5</p>
                 </div>
                 <div className='text-right'>
-                    <h2 className='text-sm font-semibold text-green-600'>₹{props.fare.auto}</h2>
-                    <p className='text-xs text-gray-600'>Per person</p>
+                    <h2 className='text-sm font-semibold text-green-600'>*{props.fare.auto}</h2>
+                    <p className='text-xs text-gray-600'>connect</p>
                 </div>
             </div>
 

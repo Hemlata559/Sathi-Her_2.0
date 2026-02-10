@@ -1,4 +1,5 @@
 import React from 'react'
+import { useNavigate } from 'react-router-dom'
 
 const ConfirmRide = (props) => {
     // Determine companion type details
@@ -12,6 +13,20 @@ const ConfirmRide = (props) => {
     };
 
     const companionType = getCompanionType();
+    const navigate = useNavigate();
+    const [meetingAddress, setMeetingAddress] = React.useState(props.pickup || 'Krishna Nagar bus Stop')
+
+    const getRandomAddress = () => {
+        const samples = [
+            '221B Baker Street, London',
+            '1600 Amphitheatre Parkway, Mountain View, CA',
+            'Piazza del Colosseo, 1, 00184 Roma RM, Italy',
+            'Shibuya Crossing, Tokyo, Japan',
+            'Brandenburg Gate, Pariser Platz, Berlin, Germany',
+            'Connaught Place, New Delhi, India'
+        ]
+        return samples[Math.floor(Math.random() * samples.length)]
+    }
 
     return (
         <div>
@@ -43,7 +58,7 @@ const ConfirmRide = (props) => {
                     </div>
 
                     {/* Schedule */}
-                    <div className='flex items-center gap-3 p-2 border-b-2'>
+                    <div onClick={() => { props.setConfirmRidePanel(false); navigate('/schedule'); }} className='cursor-pointer flex items-center gap-3 p-2 border-b-2'>
                         <i className="ri-calendar-line text-blue-500"></i>
                         <div>
                             <h3 className='text-sm font-medium'>Schedule</h3>
@@ -52,29 +67,29 @@ const ConfirmRide = (props) => {
                     </div>
 
                     {/* Location */}
-                    <div className='flex items-center gap-3 p-2 border-b-2'>
+                    <div onClick={() => setMeetingAddress(getRandomAddress())} title='Click to generate random address' className='cursor-pointer flex items-center gap-3 p-2 border-b-2'>
                         <i className="ri-map-pin-user-fill text-purple-500"></i>
                         <div>
                             <h3 className='text-sm font-medium'>Meeting Point</h3>
-                            <p className='text-xs text-gray-600'>{props.pickup}</p>
+                            <p className='text-xs text-gray-600'>{meetingAddress}</p>
                         </div>
                     </div>
 
                     {/* Destination */}
-                    <div className='flex items-center gap-3 p-2 border-b-2'>
+                    <div onClick={() => { props.setConfirmRidePanel(false); navigate('/chat'); }} className='cursor-pointer flex items-center gap-3 p-2 border-b-2'>
                         <i className="ri-map-pin-2-fill text-red-500"></i>
                         <div>
-                            <h3 className='text-sm font-medium'>Activity</h3>
+                            <h3 className='text-sm font-medium'>chat</h3>
                             <p className='text-xs text-gray-600'>{props.destination}</p>
                         </div>
                     </div>
 
                     {/* Cost */}
-                    <div className='flex items-center gap-3 p-2 bg-green-50 border-l-4 border-green-500'>
+                    <div onClick={() => { props.setConfirmRidePanel(false); navigate('/live-tracking'); }} className='cursor-pointer flex items-center gap-3 p-2 bg-green-50 border-l-4 border-green-500'>
                         <i className="ri-coin-line text-green-600"></i>
                         <div>
-                            <h3 className='text-sm font-medium'>Cost Per Person</h3>
-                            <p className='text-xs text-green-700 font-semibold'>₹{props.fare[props.vehicleType]}</p>
+                            <h3 className='text-sm font-medium'>Start Live Tracking</h3>
+                            <p className='text-xs text-green-700 font-semibold'>{props.fare[props.vehicleType]}</p>
                         </div>
                     </div>
 
@@ -84,6 +99,7 @@ const ConfirmRide = (props) => {
                             <i className="ri-shield-check-line"></i> Verified companions • Emergency contact shared
                         </p>
                     </div>
+
                 </div>
 
                 <button onClick={() => {

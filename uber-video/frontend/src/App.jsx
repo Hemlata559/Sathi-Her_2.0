@@ -10,6 +10,9 @@ import UserLogout from './pages/UserLogout'
 
 
 import Riding from './pages/Riding'
+import Schedule from './pages/Schedule'
+import Chat from './pages/Chat'
+import LiveTracking from './components/LiveTracking'
 
 import 'remixicon/fonts/remixicon.css'
 
@@ -21,6 +24,9 @@ const App = () => {
         <Route path='/' element={<Start />} />
         <Route path='/login' element={<UserLogin />} />
         <Route path='/riding' element={<Riding />} />
+        <Route path='/schedule' element={<UserProtectWrapper><Schedule /></UserProtectWrapper>} />
+        <Route path='/chat' element={<UserProtectWrapper><Chat /></UserProtectWrapper>} />
+        <Route path='/live-tracking' element={<UserProtectWrapper><LiveTracking /></UserProtectWrapper>} />
         
 
         <Route path='/signup' element={<UserSignup />} />
