@@ -14,13 +14,13 @@ module.exports.registerUser = async (req, res) => {
             return res.status(400).json({ errors: errors.array() });
         }
 
-        const { fullname, email, mobile, password, gender } = req.body;
+        const { fullname, email, mobile, password, gender, age, collegeName, contactNumber, emergencyContact } = req.body;
 
         // Trim email and mobile
         const trimmedEmail = email ? email.trim().toLowerCase() : null;
         const trimmedMobile = mobile ? mobile.trim() : null;
 
-        console.log('Register attempt - Email:', trimmedEmail, 'Mobile:', trimmedMobile);
+        console.log('Register attempt - Email:', trimmedEmail, 'Gender:', gender);
 
         // Build query for existing user
         const query = [];
@@ -43,7 +43,12 @@ module.exports.registerUser = async (req, res) => {
             firstname: fullname.firstname,
             lastname: fullname.lastname,
             password: hashedPassword,
-            gender
+            gender: gender || 'female', // Default to female
+            age,
+            collegeName,
+            contactNumber,
+            emergencyContact,
+            isVerified: true // Auto-verify all new registrations
         };
 
         // Only add email and mobile if they exist

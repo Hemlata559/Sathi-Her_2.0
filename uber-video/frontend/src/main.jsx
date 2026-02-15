@@ -13,7 +13,7 @@ createRoot(document.getElementById('root')).render(
   
     <UserContext>
       <SocketProvider>
-        <BrowserRouter>
+        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <App />
         </BrowserRouter>
       </SocketProvider>

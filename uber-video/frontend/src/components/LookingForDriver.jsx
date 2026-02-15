@@ -1,6 +1,35 @@
-import React from 'react'
+import React, { useState } from 'react'
+import ConfirmCompanionMatch from './ConfirmCompanionMatch'
+import VehiclePanel from './VehiclePanel'
 
 const LookingForDriver = (props) => {
+    const [showConfirmMatch, setShowConfirmMatch] = useState(false)
+    const [showCompanionList, setShowCompanionList] = useState(false)
+
+    // Show companion list when "Show Available companions" is clicked
+    if (showCompanionList) {
+        return (
+            <div>
+                <h5 className='p-1 text-center w-[93%] absolute top-0' onClick={() => {
+                    setShowCompanionList(false)
+                }}><i className="text-3xl text-gray-200 ri-arrow-down-wide-line"></i></h5>
+                <VehiclePanel 
+                    fare={props.fare}
+                    selectVehicle={props.selectVehicle}
+                    setConfirmRidePanel={props.setConfirmRidePanel}
+                    setVehiclePanel={() => setShowCompanionList(false)}
+                    onCompanionSelect={props.onCompanionSelect}
+                    setShowCompanionList={setShowCompanionList}
+                />
+            </div>
+        )
+    }
+
+    // Show confirmation dialog when match is confirmed
+    if (showConfirmMatch) {
+        return <ConfirmCompanionMatch setShowConfirmMatch={setShowConfirmMatch} />
+    }
+
     return (
         <div>
             <h5 className='p-1 text-center w-[93%] absolute top-0' onClick={() => {
@@ -25,7 +54,7 @@ const LookingForDriver = (props) => {
                     <div className='flex items-center gap-3 p-3 border-b-2'>
                         <i className="ri-map-pin-user-fill text-purple-500"></i>
                         <div>
-                            <h3 className='text-sm font-medium'>Meeting Point</h3>
+                            <h3 className='text-sm font-medium'>Statring Point</h3>
                             <p className='text-xs text-gray-600'>{props.pickup}</p>
                         </div>
                     </div>
@@ -34,17 +63,20 @@ const LookingForDriver = (props) => {
                     <div className='flex items-center gap-3 p-3 border-b-2'>
                         <i className="ri-map-pin-2-fill text-red-500"></i>
                         <div>
-                            <h3 className='text-sm font-medium'>Activity Location</h3>
+                            <h3 className='text-sm font-medium'>Your Destination</h3>
                             <p className='text-xs text-gray-600'>{props.destination}</p>
                         </div>
                     </div>
 
-                    {/* Cost */}
-                    <div className='flex items-center gap-3 p-3 bg-green-50 border-l-4 border-green-500'>
-                        <i className="ri-coin-line text-green-600"></i>
+                    {/* Show Available Companions Button */}
+                    <div 
+                        onClick={() => setShowCompanionList(true)}
+                        className='flex items-center gap-3 p-3 bg-green-50 border-l-4 border-green-500 cursor-pointer hover:bg-green-100 transition'
+                    >
+                        <i className="ri-team-fill text-green-600"></i>
                         <div>
-                            <h3 className='text-sm font-medium'>Cost Per Person</h3>
-                            <p className='text-xs text-green-700 font-semibold'>₹{props.fare[props.vehicleType]}</p>
+                            <h3 className='text-sm font-medium'>Show Available companions</h3>
+                            <p className='text-xs text-green-700 font-semibold'>{props.fare?.[props.vehicleType] || 'No fare'}</p>
                         </div>
                     </div>
                 </div>

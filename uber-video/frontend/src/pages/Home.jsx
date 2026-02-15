@@ -8,10 +8,12 @@ import logo from '../assets/logo.png'
 
 import VehiclePanel from '../components/VehiclePanel';
 import ConfirmRide from '../components/ConfirmRide';
+import RideConfirmed from '../components/RideConfirmed';
 import LookingForDriver from '../components/LookingForDriver';
 import WaitingForDriver from '../components/WaitingForDriver';
 import { SocketContext } from '../context/SocketContext';
 import { useContext } from 'react';
+import { useLocation } from 'react-router-dom';
 import { UserDataContext } from '../context/UserContext';
 import { useNavigate } from 'react-router-dom';
 import LiveTracking from '../components/LiveTracking';
@@ -22,12 +24,14 @@ const Home = () => {
     const [ panelOpen, setPanelOpen ] = useState(false)
     const vehiclePanelRef = useRef(null)
     const confirmRidePanelRef = useRef(null)
+    const rideConfirmedPanelRef = useRef(null)
     const vehicleFoundRef = useRef(null)
     const waitingForDriverRef = useRef(null)
     const panelRef = useRef(null)
     const panelCloseRef = useRef(null)
     const [ vehiclePanel, setVehiclePanel ] = useState(false)
     const [ confirmRidePanel, setConfirmRidePanel ] = useState(false)
+    const [ rideConfirmedPanel, setRideConfirmedPanel ] = useState(false)
     const [ vehicleFound, setVehicleFound ] = useState(false)
     const [ waitingForDriver, setWaitingForDriver ] = useState(false)
     const [ pickupSuggestions, setPickupSuggestions ] = useState([])
@@ -37,16 +41,34 @@ const Home = () => {
     const [ vehicleType, setVehicleType ] = useState(null)
     const [ ride, setRide ] = useState(null)
     const [travelMode, setTravelMode] = useState('')
+    const [selectedCompanion, setSelectedCompanion] = useState(null)
+    const [schedule, setSchedule] = useState('Today • Flexible timing')
 
 
     const navigate = useNavigate()
 
     const { socket } = useContext(SocketContext)
+    const location = useLocation()
     const { user } = useContext(UserDataContext)
+
+    // Handle companion selection
+    const handleCompanionSelect = (companion) => {
+        setSelectedCompanion(companion)
+    }
 
     useEffect(() => {
         socket.emit("join", { userType: "user", userId: user._id })
     }, [ user ])
+
+    // If navigated from signup with intent to open the search panel, do it once
+    React.useEffect(() => {
+        if (location?.state?.openSearchPanel) {
+            setPanelOpen(true)
+            if (location.state.focusField) setActiveField(location.state.focusField)
+            // clear location state by replacing history (optional)
+            window.history.replaceState({}, document.title)
+        }
+    }, [location])
 
     socket.on('ride-confirmed', ride => {
 
@@ -146,6 +168,18 @@ const Home = () => {
     }, [ confirmRidePanel ])
 
     useGSAP(function () {
+        if (rideConfirmedPanel) {
+            gsap.to(rideConfirmedPanelRef.current, {
+                transform: 'translateY(0)'
+            })
+        } else {
+            gsap.to(rideConfirmedPanelRef.current, {
+                transform: 'translateY(100%)'
+            })
+        }
+    }, [ rideConfirmedPanel ])
+
+    useGSAP(function () {
         if (vehicleFound) {
             gsap.to(vehicleFoundRef.current, {
                 transform: 'translateY(0)'
@@ -171,34 +205,48 @@ const Home = () => {
 
 
     async function findTrip() {
-        setVehiclePanel(true)
-        setPanelOpen(false)
+        if (!pickup || !destination || !travelMode) {
+            alert('Please enter pickup, destination, and travel mode')
+            return
+        }
 
-        const response = await axios.get(`${import.meta.env.VITE_BASE_URL}/rides/get-fare`, {
-            params: { pickup, destination },
-            headers: {
-                Authorization: `Bearer ${localStorage.getItem('token')}`
+        try {
+            setVehiclePanel(true)
+            setPanelOpen(false)
+
+            console.log('Sending ride creation request:', {
+                pickup,
+                destination,
+                departureTime: new Date().toISOString(),
+                mode: travelMode
+            })
+
+            const response = await axios.post(`${import.meta.env.VITE_BASE_URL}/rides/create`, {
+                pickup,
+                destination,
+                departureTime: new Date().toISOString(),
+                mode: travelMode
+            }, {
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem('token')}`
+                }
+            })
+
+            if (response.data) {
+                setRide(response.data)
+                setVehicleFound(true)
+                alert('Journey created! Looking for companions...')
             }
-        })
-
-
-        setFare(response.data)
-
-
+        } catch (error) {
+            console.error('Error creating ride:', error)
+            console.error('Error response:', error.response?.data || error.message)
+            alert(`Error: ${error.response?.data?.message || error.response?.data?.errors?.[0]?.msg || error.message || 'Failed to create journey'}`)
+            setVehiclePanel(false)
+        }
     }
 
     async function createRide() {
-        const response = await axios.post(`${import.meta.env.VITE_BASE_URL}/rides/create`, {
-            pickup,
-            destination,
-            vehicleType
-        }, {
-            headers: {
-                Authorization: `Bearer ${localStorage.getItem('token')}`
-            }
-        })
-
-
+        // This function is kept for reference - use findTrip instead
     }
 
     return (
@@ -207,9 +255,9 @@ const Home = () => {
             <div className='w-screen overflow-hidden'>
         
 
-                {/* image for temporary use  */}
+                {/* Map with pickup and destination */}
                 <div className="w-full h-[60vh] relative overflow-hidden z-0">
-                    <LiveTracking />
+                    <LiveTracking pickup={pickup} destination={destination} />
                 </div>
                 
             </div>
@@ -256,10 +304,11 @@ const Home = () => {
                             className='bg-[#eee] px-4 py-2 text-lg rounded-lg w-full mt-3'
                             >
                             <option value="">Select Travel Mode</option>
-                            <option value="walking">Walking</option>
-                            <option value="Metro">Metro</option>
-                            <option value="Private Cab">Private Cab</option>
-                            <option value="public">Bus</option>
+                            <option value="walk">Walking</option>
+                            <option value="metro">Metro</option>
+                            <option value="cab">Private Cab</option>
+                            <option value="bus">Bus</option>
+                            <option value="mixed">Mixed</option>
                         </select>
 
 
@@ -285,7 +334,10 @@ const Home = () => {
             <div ref={vehiclePanelRef} className='fixed w-full z-10 bottom-0 translate-y-full bg-white px-3 py-10 pt-12'>
                 <VehiclePanel
                     selectVehicle={setVehicleType}
-                    fare={fare} setConfirmRidePanel={setConfirmRidePanel} setVehiclePanel={setVehiclePanel} />
+                    fare={fare} 
+                    setConfirmRidePanel={setConfirmRidePanel} 
+                    setVehiclePanel={setVehiclePanel}
+                    onCompanionSelect={handleCompanionSelect} />
             </div>
             <div ref={confirmRidePanelRef} className='fixed w-full z-10 bottom-0 translate-y-full bg-white px-3 py-6 pt-12'>
                 <ConfirmRide
@@ -294,8 +346,19 @@ const Home = () => {
                     destination={destination}
                     fare={fare}
                     vehicleType={vehicleType}
-
-                    setConfirmRidePanel={setConfirmRidePanel} setVehicleFound={setVehicleFound} />
+                    selectedCompanion={selectedCompanion}
+                    setConfirmRidePanel={setConfirmRidePanel} 
+                    setRideConfirmedPanel={setRideConfirmedPanel}
+                    setSchedule={setSchedule}
+                    setVehicleFound={setVehicleFound} />
+            </div>
+            <div ref={rideConfirmedPanelRef} className='fixed w-full z-10 bottom-0 translate-y-full bg-white px-3 py-6 pt-12 max-h-[90vh] overflow-y-auto'>
+                <RideConfirmed
+                    pickup={pickup}
+                    destination={destination}
+                    schedule={schedule}
+                    selectedCompanion={selectedCompanion}
+                    setRideConfirmedPanel={setRideConfirmedPanel} />
             </div>
             <div ref={vehicleFoundRef} className='fixed w-full z-10 bottom-0 translate-y-full bg-white px-3 py-6 pt-12'>
                 <LookingForDriver
@@ -304,9 +367,12 @@ const Home = () => {
                     destination={destination}
                     fare={fare}
                     vehicleType={vehicleType}
-                    setVehicleFound={setVehicleFound} />
+                    setVehicleFound={setVehicleFound}
+                    selectVehicle={setVehicleType}
+                    setConfirmRidePanel={setConfirmRidePanel}
+                    onCompanionSelect={handleCompanionSelect} />
             </div>
-            <div ref={waitingForDriverRef} className='fixed w-full  z-10 bottom-0  bg-white px-3 py-6 pt-12'>
+            <div ref={waitingForDriverRef} className='fixed w-full z-10 bottom-0 translate-y-full bg-white px-3 py-6 pt-12 max-h-[90vh] overflow-y-auto'>
                 <WaitingForDriver
                     ride={ride}
                     setVehicleFound={setVehicleFound}

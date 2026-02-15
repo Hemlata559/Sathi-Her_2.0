@@ -137,3 +137,46 @@ module.exports.endJourney = async ({ rideId }) => {
 
     return ride;
 };
+
+/* --------------------------------------------------
+   GET FARE CALCULATION
+   Calculate fare based on distance
+-------------------------------------------------- */
+module.exports.getFare = async (pickup, destination) => {
+    if (!pickup || !destination) {
+        throw new Error('Pickup and destination are required');
+    }
+
+    try {
+        // Get coordinates for both addresses
+        const pickupCoords = await mapService.getAddressCoordinate(pickup);
+        const destinationCoords = await mapService.getAddressCoordinate(destination);
+        
+        // Get distance and duration
+        const distance = await mapService.getDistanceTime(pickupCoords, destinationCoords);
+        
+        // Simple fare calculation based on distance
+        const distanceInKm = distance.distance.value / 1000;
+        const baseFare = 50; // Base fare in rupees
+        const perKmRate = 10; // Rate per km
+        const totalFare = Math.round(baseFare + (distanceInKm * perKmRate));
+
+        return {
+            pickup,
+            destination,
+            distance: distance.distance.text,
+            duration: distance.duration.text,
+            baseFare,
+            perKmRate,
+            totalDistance: distanceInKm.toFixed(2),
+            fare: {
+                economy: totalFare,
+                premium: Math.round(totalFare * 1.3),
+                shared: Math.round(totalFare * 0.7)
+            }
+        };
+    } catch (error) {
+        console.error('Error calculating fare:', error);
+        throw error;
+    }
+};
