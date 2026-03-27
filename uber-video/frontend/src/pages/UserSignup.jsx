@@ -142,9 +142,8 @@ const UserSignup = () => {
   }
 
   try {
-    // ✅ THIS LINE WAS MISSING
     const response = await axios.post(
-      'http://localhost:5000/users/register',
+      `${import.meta.env.VITE_BASE_URL || import.meta.env.VITE_API_URL}/users/register`,
       newUser
     )
 

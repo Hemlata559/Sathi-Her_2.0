@@ -1,9 +1,7 @@
 import React, { useState } from 'react'
-import ConfirmCompanionMatch from './ConfirmCompanionMatch'
 import VehiclePanel from './VehiclePanel'
 
 const LookingForDriver = (props) => {
-    const [showConfirmMatch, setShowConfirmMatch] = useState(false)
     const [showCompanionList, setShowCompanionList] = useState(false)
 
     // Show companion list when "Show Available companions" is clicked
@@ -19,15 +17,11 @@ const LookingForDriver = (props) => {
                     setConfirmRidePanel={props.setConfirmRidePanel}
                     setVehiclePanel={() => setShowCompanionList(false)}
                     onCompanionSelect={props.onCompanionSelect}
+                    onRequestCompanion={props.onRequestCompanion}
                     setShowCompanionList={setShowCompanionList}
                 />
             </div>
         )
-    }
-
-    // Show confirmation dialog when match is confirmed
-    if (showConfirmMatch) {
-        return <ConfirmCompanionMatch setShowConfirmMatch={setShowConfirmMatch} />
     }
 
     return (
@@ -50,6 +44,10 @@ const LookingForDriver = (props) => {
                 <p className='text-center text-gray-600 font-medium mt-4'>Searching for companions...</p>
 
                 <div className='w-full mt-6'>
+                    <div className='flex items-center gap-2 mb-3'>
+                        <span className='text-orange-500 font-bold tracking-wide'>Filters</span>
+                        <span className='text-xs text-gray-500'>Adjust your companion search</span>
+                    </div>
                     {/* Meeting Point */}
                     <div className='flex items-center gap-3 p-3 border-b-2'>
                         <i className="ri-map-pin-user-fill text-purple-500"></i>
