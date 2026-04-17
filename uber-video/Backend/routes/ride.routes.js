@@ -71,6 +71,29 @@ router.post(
     rideController.verifyMeetingOtp
 );
 
+router.post(
+    '/verify-face',
+    authMiddleware.authVerifiedFemale,
+    body('rideId')
+        .isMongoId()
+        .withMessage('Invalid journey id'),
+    body('selfieImageUrl')
+        .isString()
+        .isLength({ min: 20 })
+        .withMessage('A captured companion image is required'),
+    body('referenceImageUrl')
+        .isString()
+        .isLength({ min: 5 })
+        .withMessage('A reference companion image is required'),
+    body('similarityScore')
+        .isFloat({ min: 0, max: 100 })
+        .withMessage('Similarity score must be between 0 and 100'),
+    body('faceVerified')
+        .isBoolean()
+        .withMessage('Face verification status is required'),
+    rideController.verifyCompanionFaceMatch
+);
+
 
 /* --------------------------------------------------
    START JOURNEY
@@ -97,6 +120,12 @@ router.post(
         .withMessage('Invalid journey id'),
 
     rideController.endJourney
+);
+
+router.get(
+    '/:rideId/live-tracking',
+    authMiddleware.authVerifiedFemale,
+    rideController.getLiveTracking
 );
 
 module.exports = router;

@@ -1,85 +1,30 @@
-import React, { useState, useContext, useRef } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import React, { useContext, useRef, useState } from 'react'
 import axios from 'axios'
+import { Link, useNavigate } from 'react-router-dom'
+import BrandNavbar from '../components/BrandNavbar'
 import { UserDataContext } from '../context/UserContext'
-
-
+import API_BASE_URL from '../utils/api'
 
 const UserSignup = () => {
-  const [ email, setEmail ] = useState('')
-  const [ password, setPassword ] = useState('')
-  const [ firstName, setFirstName ] = useState('')
-  const [ lastName, setLastName ] = useState('')
-  const [ age, setAge ] = useState('')
-  const [ collegeName, setCollegeName ] = useState('')
-  const [ contactNumber, setContactNumber ] = useState('')
-  const [ emergencyContactName, setEmergencyContactName ] = useState('')
-  const [ emergencyContactNumber, setEmergencyContactNumber ] = useState('')
-  const [ emergencyContactRelationship, setEmergencyContactRelationship ] = useState('')
-  const [ userData, setUserData ] = useState({})
-  const [gender, setGender] = useState('female')
-  const [profileImage, setProfileImage] = useState(null)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [age, setAge] = useState('')
+  const [collegeName, setCollegeName] = useState('')
+  const [contactNumber, setContactNumber] = useState('')
+  const [emergencyContactName, setEmergencyContactName] = useState('')
+  const [emergencyContactNumber, setEmergencyContactNumber] = useState('')
+  const [emergencyContactRelationship, setEmergencyContactRelationship] = useState('')
   const [imagePreview, setImagePreview] = useState(null)
   const [showCamera, setShowCamera] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
 
-
   const navigate = useNavigate()
+  const { setUser } = useContext(UserDataContext)
 
-  const { user, setUser } = useContext(UserDataContext)
-
-
-  // const submitHandler = async (e) => {
-  //   e.preventDefault()
-  //   const newUser = {
-  //     fullname: {
-  //       firstname: firstName,
-  //       lastname: lastName
-  //     },
-  //     email: email,
-  //     password: password,
-  //     gender: gender
-
-  //   }
-
-
-    
-    
-
-
-
-  //   if (response.status === 201) {
-  //     const data = response.data
-  //     setUser(data.user)
-  //     localStorage.setItem('token', data.token)
-  //     navigate('/home')
-  //   }
-
-
-  //   setEmail('')
-  //   setFirstName('')
-  //   setLastName('')
-  //   setPassword('')
-
-  // }
-
-
-  // Handle image file selection
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0]
-    if (file) {
-      setProfileImage(file)
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setImagePreview(reader.result)
-      }
-      reader.readAsDataURL(file)
-      setShowCamera(false)
-    }
-  }
-
-  // Start camera
   const startCamera = async () => {
     setShowCamera(true)
     try {
@@ -93,366 +38,199 @@ const UserSignup = () => {
     }
   }
 
-  // Capture photo from camera
-  const capturePhoto = () => {
-    if (canvasRef.current && videoRef.current) {
-      const context = canvasRef.current.getContext('2d')
-      context.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height)
-      canvasRef.current.toBlob((blob) => {
-        if (blob) {
-          setProfileImage(blob)
-          const reader = new FileReader()
-          reader.onloadend = () => {
-            setImagePreview(reader.result)
-            stopCamera()
-          }
-          reader.readAsDataURL(blob)
-        }
-      })
+  const stopCamera = () => {
+    if (videoRef.current?.srcObject) {
+      videoRef.current.srcObject.getTracks().forEach((track) => track.stop())
     }
+    setShowCamera(false)
   }
 
-  // Stop camera
-  const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      videoRef.current.srcObject.getTracks().forEach(track => track.stop())
-      setShowCamera(false)
-    }
+  const capturePhoto = () => {
+    if (!canvasRef.current || !videoRef.current) return
+
+    const context = canvasRef.current.getContext('2d')
+    context.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height)
+    const dataUrl = canvasRef.current.toDataURL('image/jpeg', 0.92)
+    setImagePreview(dataUrl)
+    stopCamera()
   }
 
   const submitHandler = async (e) => {
-  e.preventDefault()
+    e.preventDefault()
 
-  const newUser = {
-    fullname: {
-      firstname: firstName,
-      lastname: lastName
-    },
-    email: email,
-    password: password,
-    gender: gender,
-    age: age,
-    collegeName: collegeName,
-    contactNumber: contactNumber,
-    emergencyContact: {
-      name: emergencyContactName,
-      number: emergencyContactNumber,
-      relationship: emergencyContactRelationship
-    }
-  }
-
-  try {
-    const response = await axios.post(
-      `${import.meta.env.VITE_BASE_URL || import.meta.env.VITE_API_URL}/users/register`,
-      newUser
-    )
-
-    if (response.status === 201) {
-      const data = response.data
-      setUser(data.user)
-      localStorage.setItem('token', data.token)
-      // navigate to home and request the panel to open for entering destination
-      navigate('/home', { state: { openSearchPanel: true, focusField: 'destination' } })
+    const newUser = {
+      fullname: {
+        firstname: firstName,
+        lastname: lastName
+      },
+      email,
+      password,
+      gender: 'female',
+      age,
+      collegeName,
+      contactNumber,
+      emergencyContact: {
+        name: emergencyContactName,
+        number: emergencyContactNumber,
+        relationship: emergencyContactRelationship
+      }
     }
 
-    // reset form
-    setEmail('')
-    setFirstName('')
-    setLastName('')
-    setPassword('')
-    setAge('')
-    setCollegeName('')
-    setContactNumber('')
-    setEmergencyContactName('')
-    setEmergencyContactNumber('')
-    setEmergencyContactRelationship('')
-    setProfileImage(null)
-    setImagePreview(null)
+    try {
+      setSubmitting(true)
+      const response = await axios.post(`${API_BASE_URL}/users/register`, newUser)
 
-  } catch (error) {
-    console.error(error)
-    alert(`Error: ${error.response?.data?.message || error.message || 'Failed to create account'}`)
+      if (response.status === 201) {
+        const data = response.data
+        setUser(data.user)
+        localStorage.setItem('token', data.token)
+        if (imagePreview) {
+          localStorage.setItem('profileImage', imagePreview)
+        }
+        navigate('/home', { state: { openSearchPanel: true, focusField: 'destination' } })
+      }
+    } catch (error) {
+      console.error(error)
+      alert(`Error: ${error.response?.data?.message || error.message || 'Failed to create account'}`)
+    } finally {
+      setSubmitting(false)
+    }
   }
-}
-
-  
-
 
   return (
-    <div>
-      <div className='p-7 min-h-screen flex flex-col justify-between'>
-        <div>
-          <h3 className="text-4xl font-extrabold tracking-tight text-black mb-7">
-            Sathi<span className="text-gray-500">-Her</span>
-          </h3>
+    <div className='brand-shell px-4 pb-12'>
+      <BrandNavbar compact />
 
-          <form onSubmit={(e) => {
-            submitHandler(e)
-          }}>
-            
-            {/* Email Section - Full Width */}
-            <div className='mb-6'>
-              <h3 className='text-lg font-medium mb-2'>What's your email</h3>
-              <input
-                required
-                value={email}
-                onChange={(e) => { setEmail(e.target.value) }}
-                className='bg-[#eeeeee] w-full rounded-lg px-4 py-3 border text-base placeholder:text-sm'
-                type="email"
-                placeholder='email@example.com'
-              />
+      <div className='mx-auto mt-10 grid max-w-7xl gap-8 lg:grid-cols-[0.92fr_1.08fr] lg:items-start'>
+        <div className='px-2 lg:sticky lg:top-10'>
+          <div className='inline-flex items-center gap-2 rounded-full border border-fuchsia-200 bg-white/80 px-4 py-2 text-sm font-semibold text-fuchsia-600'>
+            <span className='h-2 w-2 rounded-full bg-emerald-500' />
+            Build your trusted travel profile
+          </div>
+          <h1 className='mt-6 text-5xl font-black tracking-tight text-slate-900 md:text-6xl'>Create your safe travel identity.</h1>
+          <p className='mt-6 max-w-xl text-lg leading-8 text-slate-600'>
+            Set up your profile once so companion requests, live journey coordination, and safety checks feel fast and reliable.
+          </p>
+
+          <div className='mt-8 space-y-4'>
+            <div className='brand-glass rounded-[28px] p-5'>
+              <p className='text-sm font-bold text-slate-900'>Why the profile photo matters</p>
+              <p className='mt-2 text-sm leading-6 text-slate-600'>Your profile image helps with companion verification before the journey starts.</p>
+            </div>
+            <div className='brand-glass rounded-[28px] p-5'>
+              <p className='text-sm font-bold text-slate-900'>Emergency contact layer</p>
+              <p className='mt-2 text-sm leading-6 text-slate-600'>Your safety setup can support quicker help and more trustworthy ride coordination.</p>
+            </div>
+          </div>
+        </div>
+
+        <div className='brand-glass rounded-[38px] p-6 md:p-8'>
+          <form onSubmit={submitHandler} className='space-y-8'>
+            <div>
+              <h2 className='text-3xl font-black tracking-tight text-slate-900'>Sign up</h2>
+              <p className='mt-2 text-sm text-slate-500'>Everything here follows the same calm, safety-first experience.</p>
             </div>
 
-            {/* Password Section - Full Width */}
-            <div className='mb-8'>
-              <h3 className='text-lg font-medium mb-2'>Enter Password</h3>
-              <input
-                className='bg-[#eeeeee] w-full rounded-lg px-4 py-3 border text-base placeholder:text-sm'
-                value={password}
-                onChange={(e) => { setPassword(e.target.value) }}
-                required
-                type="password"
-                placeholder='password'
-              />
-            </div>
-            
-            {/* Two Column Layout */}
-            <div className='flex gap-8 mb-8'>
-              
-              {/* LEFT SIDE - Form Fields */}
-              <div className='w-1/2'>
-                
-                {/* Name Fields */}
-                <h3 className='text-lg font-medium mb-3'>What's your name</h3>
-                <div className='flex gap-3 mb-6'>
-                  <input
-                    required
-                    className='bg-[#eeeeee] flex-1 rounded-lg px-4 py-3 border text-base placeholder:text-sm'
-                    type="text"
-                    placeholder='First name'
-                    value={firstName}
-                    onChange={(e) => { setFirstName(e.target.value) }}
-                  />
-                  <input
-                    required
-                    className='bg-[#eeeeee] flex-1 rounded-lg px-4 py-3 border text-base placeholder:text-sm'
-                    type="text"
-                    placeholder='Last name'
-                    value={lastName}
-                    onChange={(e) => { setLastName(e.target.value) }}
-                  />
-                </div>
-
-                {/* Age and College */}
-                <div className='flex gap-3 mb-6'>
-                  <div className='flex-1'>
-                    <h3 className='text-sm font-medium mb-2'>Age</h3>
-                    <input
-                      className='bg-[#eeeeee] w-full rounded-lg px-4 py-3 border text-base placeholder:text-sm'
-                      type="number"
-                      placeholder='Age (minimum 18)'
-                      value={age}
-                      onChange={(e) => { 
-                        const value = e.target.value
-                        if (value === '' || parseInt(value) >= 18) {
-                          setAge(value)
-                        }
-                      }}
-                      min="18"
-                    />
-                  </div>
-                  <div className='flex-1'>
-                    <h3 className='text-sm font-medium mb-2'>Gender</h3>
-                    <select
-                      value={gender}
-                      disabled
-                      className='bg-[#eeeeee] w-full rounded-lg px-4 py-3 border text-base cursor-not-allowed opacity-75'
-                    >
-                      <option value="female">Female</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* College Name */}
-                <h3 className='text-sm font-medium mb-2'>College Name</h3>
-                <input
-                  className='bg-[#eeeeee] w-full rounded-lg px-4 py-3 border text-base placeholder:text-sm mb-6'
-                  type="text"
-                  placeholder='Your College/University'
-                  value={collegeName}
-                  onChange={(e) => { setCollegeName(e.target.value) }}
-                />
-
-                {/* Contact Number */}
-                <h3 className='text-sm font-medium mb-2'>Contact Number</h3>
-                <input
-                  className='bg-[#eeeeee] w-full rounded-lg px-4 py-3 border text-base placeholder:text-sm mb-6'
-                  type="tel"
-                  placeholder='10 digit mobile number'
-                  value={contactNumber}
-                  onChange={(e) => { setContactNumber(e.target.value) }}
-                  maxLength="10"
-                />
+            <div className='grid gap-5 md:grid-cols-2'>
+              <div>
+                <label className='mb-2 block text-sm font-semibold text-slate-700'>First Name</label>
+                <input required value={firstName} onChange={(e) => setFirstName(e.target.value)} className='w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 outline-none transition focus:border-fuchsia-300 focus:ring-4 focus:ring-fuchsia-100' placeholder='First name' />
               </div>
-
-              {/* RIGHT SIDE - Image Capture */}
-              <div className='w-1/2'>
-                <div className='h-full min-h-96 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 rounded-2xl p-6 border-2 border-purple-200 shadow-lg flex flex-col'>
-                  
-                  {/* Header */}
-                  <h3 className='text-xl font-bold mb-2 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent'>Profile Picture</h3>
-                  <p className='text-sm text-gray-600 mb-6'>Capture your photo to complete your profile</p>
-
-                  {/* Camera Button */}
-                  <div className='mb-6'>
-                    <button
-                      type='button'
-                      onClick={startCamera}
-                      disabled={showCamera}
-                      className='w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 disabled:from-gray-400 disabled:to-gray-400 text-white font-bold rounded-xl px-4 py-4 text-base transition transform hover:scale-105 shadow-md'
-                    >
-                      📷 Capture from Camera
-                    </button>
-                  </div>
-
-                  {/* Camera Feed */}
-                  {showCamera && (
-                    <div className='flex-1 p-4 bg-white rounded-xl border-2 border-blue-300 shadow-inner mb-4 flex flex-col'>
-                      <video
-                        ref={videoRef}
-                        autoPlay
-                        playsInline
-                        className='w-full h-full rounded-lg object-cover'
-                      />
-                      <canvas
-                        ref={canvasRef}
-                        width={640}
-                        height={480}
-                        className='hidden'
-                      />
-                      <div className='flex gap-3 mt-4'>
-                        <button
-                          type='button'
-                          onClick={capturePhoto}
-                          className='flex-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold rounded-lg px-4 py-3 transition transform hover:scale-105'
-                        >
-                          ✓ Capture Photo
-                        </button>
-                        <button
-                          type='button'
-                          onClick={stopCamera}
-                          className='flex-1 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-bold rounded-lg px-4 py-3 transition transform hover:scale-105'
-                        >
-                          ✕ Cancel
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Image Preview */}
-                  {imagePreview && !showCamera && (
-                    <div className='flex-1 p-6 bg-white rounded-xl border-2 border-green-300 shadow-inner flex flex-col items-center justify-center'>
-                      <div className='relative mb-4 w-full h-full flex items-center justify-center'>
-                        <div className='absolute inset-0 bg-gradient-to-br from-blue-200 to-purple-200 rounded-lg opacity-30'></div>
-                        <img
-                          src={imagePreview}
-                          alt='Profile preview'
-                          className='relative w-56 h-56 rounded-2xl object-cover shadow-xl border-4 border-white'
-                        />
-                      </div>
-                      <button
-                        type='button'
-                        onClick={() => {
-                          setImagePreview(null)
-                          setProfileImage(null)
-                        }}
-                        className='w-full bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-bold rounded-lg px-4 py-2 transition'
-                      >
-                        ✕ Remove & Retake
-                      </button>
-                    </div>
-                  )}
-
-                  {!imagePreview && !showCamera && (
-                    <div className='flex-1 bg-white rounded-xl border-2 border-dashed border-purple-300 flex flex-col items-center justify-center shadow-inner hover:shadow-md transition'>
-                      <div className='text-center'>
-                        <div className='text-6xl mb-3'>📸</div>
-                        <p className='text-lg font-semibold text-gray-700 mb-2'>Ready to capture?</p>
-                        <p className='text-sm text-gray-500'>Click the button above to start your camera</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
+              <div>
+                <label className='mb-2 block text-sm font-semibold text-slate-700'>Last Name</label>
+                <input required value={lastName} onChange={(e) => setLastName(e.target.value)} className='w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 outline-none transition focus:border-fuchsia-300 focus:ring-4 focus:ring-fuchsia-100' placeholder='Last name' />
               </div>
-
             </div>
 
-            {/* Emergency Contact Section - Full Width */}
-            <div className='mb-8 p-6 bg-gray-50 rounded-lg border-2 border-orange-300'>
-              <h3 className='text-lg font-medium mb-4 text-orange-700'>Emergency Contact Information</h3>
-              
-              <div className='flex gap-3 mb-4'>
-                <div className='flex-1'>
-                  <label className='text-sm font-medium mb-2 block'>Contact Name</label>
-                  <input
-                    className='bg-[#eeeeee] w-full rounded-lg px-4 py-3 border text-base placeholder:text-sm'
-                    type="text"
-                    placeholder='Emergency contact name'
-                    value={emergencyContactName}
-                    onChange={(e) => { setEmergencyContactName(e.target.value) }}
-                  />
-                </div>
-                <div className='flex-1'>
-                  <label className='text-sm font-medium mb-2 block'>Phone Number</label>
-                  <input
-                    className='bg-[#eeeeee] w-full rounded-lg px-4 py-3 border text-base placeholder:text-sm'
-                    type="tel"
-                    placeholder='10 digit phone number'
-                    value={emergencyContactNumber}
-                    onChange={(e) => { setEmergencyContactNumber(e.target.value) }}
-                    maxLength="10"
-                  />
-                </div>
-                <div className='flex-1'>
-                  <label className='text-sm font-medium mb-2 block'>Relationship</label>
-                  <select
-                    value={emergencyContactRelationship}
-                    onChange={(e) => setEmergencyContactRelationship(e.target.value)}
-                    className='bg-[#eeeeee] w-full rounded-lg px-4 py-3 border text-base'
-                  >
-                    <option value="">Select relationship</option>
-                    <option value="Mother">Mother</option>
-                    <option value="Father">Father</option>
-                    <option value="Sister">Sister</option>
-                    <option value="Brother">Brother</option>
-                    <option value="Friend">Friend</option>
-                    <option value="Other">Other</option>
+            <div className='grid gap-5 md:grid-cols-2'>
+              <div>
+                <label className='mb-2 block text-sm font-semibold text-slate-700'>Email</label>
+                <input required type='email' value={email} onChange={(e) => setEmail(e.target.value)} className='w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 outline-none transition focus:border-fuchsia-300 focus:ring-4 focus:ring-fuchsia-100' placeholder='email@example.com' />
+              </div>
+              <div>
+                <label className='mb-2 block text-sm font-semibold text-slate-700'>Password</label>
+                <input required type='password' value={password} onChange={(e) => setPassword(e.target.value)} className='w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 outline-none transition focus:border-fuchsia-300 focus:ring-4 focus:ring-fuchsia-100' placeholder='Create a password' />
+              </div>
+            </div>
+
+            <div className='grid gap-5 md:grid-cols-3'>
+              <div>
+                <label className='mb-2 block text-sm font-semibold text-slate-700'>Age</label>
+                <input type='number' min='18' value={age} onChange={(e) => setAge(e.target.value)} className='w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 outline-none transition focus:border-fuchsia-300 focus:ring-4 focus:ring-fuchsia-100' placeholder='18+' />
+              </div>
+              <div>
+                <label className='mb-2 block text-sm font-semibold text-slate-700'>College</label>
+                <input value={collegeName} onChange={(e) => setCollegeName(e.target.value)} className='w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 outline-none transition focus:border-fuchsia-300 focus:ring-4 focus:ring-fuchsia-100' placeholder='College / University' />
+              </div>
+              <div>
+                <label className='mb-2 block text-sm font-semibold text-slate-700'>Contact Number</label>
+                <input value={contactNumber} onChange={(e) => setContactNumber(e.target.value)} maxLength='10' className='w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 outline-none transition focus:border-fuchsia-300 focus:ring-4 focus:ring-fuchsia-100' placeholder='10 digit mobile number' />
+              </div>
+            </div>
+
+            <div className='grid gap-6 lg:grid-cols-[1.1fr_0.9fr]'>
+              <div className='rounded-[30px] border border-fuchsia-100 bg-white/80 p-5'>
+                <p className='text-sm font-bold uppercase tracking-[0.2em] text-fuchsia-500'>Emergency Contact</p>
+                <div className='mt-4 grid gap-4'>
+                  <input value={emergencyContactName} onChange={(e) => setEmergencyContactName(e.target.value)} className='w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 outline-none transition focus:border-fuchsia-300 focus:ring-4 focus:ring-fuchsia-100' placeholder='Contact name' />
+                  <input value={emergencyContactNumber} onChange={(e) => setEmergencyContactNumber(e.target.value)} maxLength='10' className='w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 outline-none transition focus:border-fuchsia-300 focus:ring-4 focus:ring-fuchsia-100' placeholder='Phone number' />
+                  <select value={emergencyContactRelationship} onChange={(e) => setEmergencyContactRelationship(e.target.value)} className='w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 outline-none transition focus:border-fuchsia-300 focus:ring-4 focus:ring-fuchsia-100'>
+                    <option value=''>Relationship</option>
+                    <option value='Mother'>Mother</option>
+                    <option value='Father'>Father</option>
+                    <option value='Sister'>Sister</option>
+                    <option value='Brother'>Brother</option>
+                    <option value='Friend'>Friend</option>
+                    <option value='Other'>Other</option>
                   </select>
                 </div>
               </div>
+
+              <div className='rounded-[30px] border border-fuchsia-100 bg-[linear-gradient(180deg,_#ffffff,_#fff5fd)] p-5'>
+                <p className='text-sm font-bold uppercase tracking-[0.2em] text-fuchsia-500'>Profile Photo</p>
+                <div className='mt-4 flex min-h-[280px] flex-col rounded-[24px] border border-dashed border-fuchsia-200 bg-white p-4'>
+                  {showCamera ? (
+                    <>
+                      <video ref={videoRef} autoPlay playsInline className='h-52 w-full rounded-[18px] object-cover' />
+                      <canvas ref={canvasRef} width={640} height={480} className='hidden' />
+                      <div className='mt-4 grid gap-3 sm:grid-cols-2'>
+                        <button type='button' onClick={capturePhoto} className='brand-button rounded-2xl px-4 py-3 text-sm font-bold text-white'>Capture Photo</button>
+                        <button type='button' onClick={stopCamera} className='rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700'>Cancel</button>
+                      </div>
+                    </>
+                  ) : imagePreview ? (
+                    <>
+                      <img src={imagePreview} alt='Profile preview' className='h-52 w-full rounded-[18px] object-cover' />
+                      <button type='button' onClick={() => setImagePreview(null)} className='mt-4 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700'>Remove and recapture</button>
+                    </>
+                  ) : (
+                    <div className='flex flex-1 flex-col items-center justify-center text-center text-slate-500'>
+                      <div className='flex h-16 w-16 items-center justify-center rounded-2xl bg-fuchsia-50 text-3xl text-fuchsia-500'>
+                        <i className='ri-camera-3-line' />
+                      </div>
+                      <p className='mt-4 text-base font-semibold text-slate-800'>Capture your profile photo</p>
+                      <p className='mt-2 max-w-xs text-sm leading-6'>This photo supports your future face-verification flow before journey start.</p>
+                      <button type='button' onClick={startCamera} className='brand-button mt-5 rounded-2xl px-5 py-3 text-sm font-bold text-white'>Open Camera</button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
-            {/* Submit Button - Full Width */}
-            <button
-              type='submit'
-              className='bg-[#111] hover:bg-[#222] text-white font-semibold rounded-lg px-4 py-3 w-full text-lg transition mb-6'
-            >
-              Create account
+            <button type='submit' disabled={submitting} className={`brand-button w-full rounded-2xl px-5 py-4 text-base font-bold text-white transition ${submitting ? 'cursor-not-allowed opacity-70' : ''}`}>
+              {submitting ? 'Creating Account...' : 'Create Account'}
             </button>
 
-            {/* Login Link */}
-            <p className='text-center'>Already have a account? <Link to='/login' className='text-blue-600 hover:text-blue-800 font-medium'>Login here</Link></p>
-
+            <p className='text-center text-sm text-slate-600'>
+              Already have an account?{' '}
+              <Link to='/login' className='font-bold text-fuchsia-500 transition hover:text-fuchsia-600'>
+                Login here
+              </Link>
+            </p>
           </form>
         </div>
-
-        <div>
-          <p className='text-[10px] leading-tight text-gray-600'>This site is protected by reCAPTCHA and the <span className='underline'>Google Privacy
-            Policy</span> and <span className='underline'>Terms of Service apply</span>.</p>
-        </div>
-
       </div>
-    </div >
+    </div>
   )
 }
 

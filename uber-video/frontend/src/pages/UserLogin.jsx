@@ -1,104 +1,15 @@
-// import React, { useState, useContext } from 'react'
-// import { Link, useNavigate } from 'react-router-dom'
-// import { UserDataContext } from '../context/UserContext'
-// import axios from 'axios'
-
-// const UserLogin = () => {
-//   const [email, setEmail] = useState('')
-//   const [password, setPassword] = useState('')
-//   const [gender, setGender] = useState('female') // default
-
-//   const { setUser } = useContext(UserDataContext)
-//   const navigate = useNavigate()
-
-//   const submitHandler = async (e) => {
-//     e.preventDefault()
-
-//     try {
-//       const response = await axios.post(
-//         `${import.meta.env.VITE_BASE_URL}/users/login`,
-//         {
-//           email,
-//           password,
-//           gender   // backend demand kar raha hai
-//         }
-//       )
-
-//       if (response.status === 200) {
-//         const data = response.data
-//         setUser(data.user)
-//         localStorage.setItem('token', data.token)
-//         navigate('/home')
-//       }
-
-//     } catch (err) {
-//       console.log(err.response?.data)
-//       alert(err.response?.data?.errors?.[0]?.msg || "Login failed")
-//     }
-
-//     setEmail('')
-//     setPassword('')
-//   }
-
-//   return (
-//     <div className='p-7 h-screen flex flex-col justify-between'>
-//       <div>
-//         <h3 className="text-4xl font-extrabold tracking-tight text-black">
-//   Sathi<span className="text-gray-500">-Her</span>
-// </h3>
-
-
-//         <form onSubmit={submitHandler}>
-//           <h3 className='text-lg font-medium mb-2'>What's your email</h3>
-//           <input
-//             required
-//             value={email}
-//             onChange={(e) => setEmail(e.target.value)}
-//             className='bg-[#eeeeee] mb-7 rounded-lg px-4 py-2 border w-full text-lg'
-//             type="email"
-//             placeholder='email@example.com'
-//           />
-
-//           <h3 className='text-lg font-medium mb-2'>Enter Password</h3>
-//           <input
-//             required
-//             value={password}
-//             onChange={(e) => setPassword(e.target.value)}
-//             className='bg-[#eeeeee] mb-7 rounded-lg px-4 py-2 border w-full text-lg'
-//             type="password"
-//             placeholder='password'
-//           />
-
-//           {/* Hidden gender field */}
-//           <input type="hidden" value={gender} />
-
-//           <button
-//             type='submit'
-//             className='bg-[#111] text-white font-semibold mb-3 rounded-lg px-4 py-2 w-full text-lg'
-//           >
-//             Login
-//           </button>
-//         </form>
-
-//         <p className='text-center'>
-//           New here? <Link to='/signup' className='text-blue-600'>Create new Account</Link>
-//         </p>
-//       </div>
-//     </div>
-//   )
-// }
-
-// export default UserLogin
-import React, { useState, useContext } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { UserDataContext } from '../context/UserContext'
+import React, { useContext, useState } from 'react'
 import axios from 'axios'
+import { Link, useNavigate } from 'react-router-dom'
+import BrandNavbar from '../components/BrandNavbar'
+import { UserDataContext } from '../context/UserContext'
+import API_BASE_URL from '../utils/api'
 
 const UserLogin = () => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [gender, setGender] = useState('female')
+  const [submitting, setSubmitting] = useState(false)
 
   const { setUser } = useContext(UserDataContext)
   const navigate = useNavigate()
@@ -107,14 +18,12 @@ const UserLogin = () => {
     e.preventDefault()
 
     try {
-      const response = await axios.post(
-        `${import.meta.env.VITE_BASE_URL}/users/login`,
-        {
-          email,
-          password,
-          gender
-        }
-      )
+      setSubmitting(true)
+      const response = await axios.post(`${API_BASE_URL}/users/login`, {
+        email: email.trim().toLowerCase(),
+        password,
+        gender: 'female'
+      })
 
       if (response.status === 200) {
         const data = response.data
@@ -122,108 +31,121 @@ const UserLogin = () => {
         localStorage.setItem('token', data.token)
         navigate('/home')
       }
-
     } catch (err) {
-      console.log(err.response?.data)
-      alert(err.response?.data?.errors?.[0]?.msg || "Login failed")
+      console.error(err.response?.data)
+      alert(
+        err.response?.data?.errors?.[0]?.msg ||
+        err.response?.data?.message ||
+        'Login failed'
+      )
+    } finally {
+      setSubmitting(false)
     }
-
-    setEmail('')
-    setPassword('')
   }
 
   return (
-    <div className='min-h-screen flex items-center justify-center' style={{ backgroundColor: '#fce5d1' }}>
-      <div className='w-full max-w-5xl mx-auto px-6'>
-        <div className='flex gap-12 items-center'>
-          
-          {/* Left Side - Image */}
-          <div className='hidden lg:block flex-1'>
-            <img 
-              src='https://i.pinimg.com/1200x/7c/fd/ef/7cfdefa81cba287c4cb6f3ec32588b67.jpg'
-              alt='Travel friends'
-              className='w-full h-[600px] object-cover rounded-[40px]'
-            />
+    <div className='brand-shell px-4 pb-12'>
+      <BrandNavbar compact />
+
+      <div className='mx-auto mt-10 grid max-w-6xl gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-center'>
+        <div className='px-2'>
+          <div className='inline-flex items-center gap-2 rounded-full border border-fuchsia-200 bg-white/80 px-4 py-2 text-sm font-semibold text-fuchsia-600'>
+            <span className='h-2 w-2 rounded-full bg-emerald-500' />
+            Welcome back to your safe travel space
           </div>
+          <h1 className='mt-6 text-5xl font-black tracking-tight text-slate-900 md:text-6xl'>Continue your journey with confidence.</h1>
+          <p className='mt-6 max-w-xl text-lg leading-8 text-slate-600'>
+            Re-enter your account to manage companion requests, view live routes, and coordinate your next verified trip.
+          </p>
 
-          {/* Right Side - Form */}
-          <div className='flex-1 bg-white rounded-[40px] p-10 shadow-xl'>
-            {/* Logo */}
-            <div className='mb-12'>
-              <h2 className="text-3xl font-bold tracking-tight">
-                  Sathi<span style={{ color: '#f55a4b' }} className='italic'> Her</span>
-              </h2>
+          <div className='mt-8 grid gap-4 sm:grid-cols-2'>
+            <div className='brand-glass rounded-[28px] p-5'>
+              <p className='text-sm font-bold text-slate-900'>Real-time trip chat</p>
+              <p className='mt-2 text-sm leading-6 text-slate-600'>Talk to your matched companion inside a ride-linked conversation.</p>
             </div>
-
-            {/* Heading */}
-            <div className='mb-8'>
-              <h1 className='text-4xl font-bold text-black mb-2'>Welcome Back!</h1>
-              <p className='text-gray-600 text-base'>Log in to your Sathi-Her community</p>
+            <div className='brand-glass rounded-[28px] p-5'>
+              <p className='text-sm font-bold text-slate-900'>Verified start flow</p>
+              <p className='mt-2 text-sm leading-6 text-slate-600'>OTP and live face verification stay connected to the same ride.</p>
             </div>
+          </div>
+        </div>
 
-            {/* Form */}
-            <form onSubmit={submitHandler} className='space-y-6'>
-              {/* Email Input */}
+        <div className='brand-glass rounded-[38px] p-6 md:p-8 lg:p-10'>
+          <div className='mx-auto max-w-md'>
+            <div className='flex items-center gap-3'>
+              <div className='flex h-12 w-12 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,_#8b5cf6,_#ec4899)] text-white shadow-lg shadow-fuchsia-200'>
+                <i className='ri-shield-check-fill text-2xl' />
+              </div>
               <div>
+                <h2 className='text-3xl font-black tracking-tight text-slate-900'>SafeCompanion</h2>
+                <p className='text-sm text-slate-500'>Sign in to continue your safe journey</p>
+              </div>
+            </div>
+
+            <div className='mt-8 space-y-3'>
+              <button type='button' className='w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-left text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50'>
+                <span className='flex items-center justify-center gap-3'>
+                  <i className='ri-google-fill text-lg text-rose-500' />
+                  Continue with Google
+                </span>
+              </button>
+              <button type='button' className='w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-left text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50'>
+                <span className='flex items-center justify-center gap-3'>
+                  <i className='ri-apple-fill text-lg text-slate-900' />
+                  Continue with Apple
+                </span>
+              </button>
+            </div>
+
+            <div className='my-8 flex items-center gap-4 text-sm text-slate-400'>
+              <div className='h-px flex-1 bg-slate-200' />
+              Or continue with email
+              <div className='h-px flex-1 bg-slate-200' />
+            </div>
+
+            <form onSubmit={submitHandler} className='space-y-5'>
+              <div>
+                <label className='mb-2 block text-sm font-semibold text-slate-700'>Email Address</label>
                 <input
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className='w-full px-5 py-3 rounded-xl border-2'
-                  style={{ borderColor: '#fcc17e' }}
-                  type="email"
-                  placeholder='Email Address'
+                  className='w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-base text-slate-800 outline-none transition focus:border-fuchsia-300 focus:ring-4 focus:ring-fuchsia-100'
+                  type='email'
+                  placeholder='Enter your email'
                 />
               </div>
 
-              {/* Password Input */}
-              <div className='relative'>
-                <input
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className='w-full px-5 py-3 rounded-xl border-2'
-                  style={{ borderColor: '#fda379' }}
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder='Password'
-                />
-                <button
-                  type='button'
-                  onClick={() => setShowPassword(!showPassword)}
-                  className='absolute right-4 top-3 text-gray-400'
-                >
-                  <i className={`ri-eye${showPassword ? '-off' : ''}-line text-2xl`}></i>
-                </button>
+              <div>
+                <label className='mb-2 block text-sm font-semibold text-slate-700'>Password</label>
+                <div className='relative'>
+                  <input
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className='w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 pr-14 text-base text-slate-800 outline-none transition focus:border-fuchsia-300 focus:ring-4 focus:ring-fuchsia-100'
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder='Enter your password'
+                  />
+                  <button type='button' onClick={() => setShowPassword((value) => !value)} className='absolute right-4 top-1/2 -translate-y-1/2 text-slate-400'>
+                    <i className={`ri-eye${showPassword ? '-off' : ''}-line text-xl`} />
+                  </button>
+                </div>
               </div>
 
-              {/* Hidden gender field */}
-              <input type="hidden" value={gender} />
+              <div className='flex justify-end'>
+                <button type='button' className='text-sm font-semibold text-fuchsia-500 transition hover:text-fuchsia-600'>Forgot Password?</button>
+              </div>
 
-              {/* Login Button */}
-              <button
-                type='submit'
-                className='w-full text-white font-bold py-3 rounded-full text-lg transition'
-                style={{ backgroundColor: '#ff9a7f' }}
-              >
-                Start My Journey
+              <button type='submit' disabled={submitting} className={`brand-button w-full rounded-2xl px-5 py-4 text-base font-bold text-white transition ${submitting ? 'cursor-not-allowed opacity-70' : ''}`}>
+                {submitting ? 'Signing In...' : 'Sign In'}
               </button>
             </form>
 
-            {/* Social Login */}
-            <div className='flex justify-center gap-8 my-8'>
-              <button className='w-14 h-14 rounded-full border-2 border-gray-300 flex items-center justify-center hover:border-gray-400 transition'>
-                <svg className='w-6 h-6' viewBox='0 0 24 24'><path fill='#ff6a5b' d='M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z'/><path fill='#ff9a7f' d='M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z'/></svg>
-              </button>
-              <button className='w-14 h-14 rounded-full border-2 border-gray-300 flex items-center justify-center hover:border-gray-400 transition'>
-                <i className='ri-apple-fill text-2xl text-black'></i>
-              </button>
-            </div>
-
-            {/* Signup Link */}
-            <p className='text-center text-gray-700'>
-              New to the sisterhood?{' '}
-              <Link to='/signup' style={{ color: '#ff6a5b' }} className='font-semibold underline hover:opacity-80'>
-                Create an account
+            <p className='mt-8 text-center text-sm text-slate-600'>
+              Don&apos;t have an account?{' '}
+              <Link to='/signup' className='font-bold text-fuchsia-500 transition hover:text-fuchsia-600'>
+                Sign Up
               </Link>
             </p>
           </div>
@@ -234,4 +156,3 @@ const UserLogin = () => {
 }
 
 export default UserLogin
-

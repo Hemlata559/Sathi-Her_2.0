@@ -1,100 +1,152 @@
-const Chat = require('../models/chat.model');
+const Conversation = require('../models/conversation.model');
 const Message = require('../models/message.model');
-const User = require('../models/user.model');
+const Ride = require('../models/ride.model');
 
-/* --------------------------------------------------
-   CREATE OR GET CHAT ROOM BETWEEN TWO USERS
--------------------------------------------------- */
-module.exports.getOrCreateChat = async (userAId, userBId) => {
+const participantFields = 'fullname fullName profileImageUrl socketId';
 
-    if (!userAId || !userBId) {
-        throw new Error('User IDs required');
+const toId = (value) => String(value);
+
+async function getMatchedRideOrThrow(rideId) {
+    const ride = await Ride.findById(rideId).populate('user matchedWith', participantFields);
+
+    if (!ride) {
+        throw new Error('Ride not found');
     }
 
-    // prevent self chat
-    if (userAId.toString() === userBId.toString()) {
-        throw new Error('Invalid users');
+    if (!ride.matchedWith) {
+        throw new Error('Chat becomes available after a companion accepts the request');
     }
 
-    // check existing room
-    let chat = await Chat.findOne({
-        participants: { $all: [userAId, userBId] }
-    });
+    return ride;
+}
 
-    if (!chat) {
-        chat = await Chat.create({
-            participants: [userAId, userBId]
+function ensureRideParticipants({ ride, userId, otherUserId }) {
+    const rideParticipantIds = [ride.user?._id, ride.matchedWith?._id].filter(Boolean).map(toId);
+
+    if (!rideParticipantIds.includes(toId(userId)) || !rideParticipantIds.includes(toId(otherUserId))) {
+        throw new Error('Chat is only available for matched journey participants');
+    }
+}
+
+async function getConversationForUser(conversationId, userId) {
+    const conversation = await Conversation.findById(conversationId)
+        .populate('participants', participantFields)
+        .populate('ride');
+
+    if (!conversation) {
+        throw new Error('Conversation not found');
+    }
+
+    const isParticipant = conversation.participants.some((participant) => toId(participant._id) === toId(userId));
+
+    if (!isParticipant) {
+        throw new Error('You are not allowed to access this conversation');
+    }
+
+    return conversation;
+}
+
+module.exports.getOrCreateConversation = async ({ rideId, userId, otherUserId }) => {
+    if (!rideId || !userId || !otherUserId) {
+        throw new Error('Ride, user and companion are required');
+    }
+
+    if (toId(userId) === toId(otherUserId)) {
+        throw new Error('You cannot start a chat with yourself');
+    }
+
+    const ride = await getMatchedRideOrThrow(rideId);
+    ensureRideParticipants({ ride, userId, otherUserId });
+
+    let conversation = await Conversation.findOne({ ride: rideId })
+        .populate('participants', participantFields)
+        .populate('ride');
+
+    if (!conversation) {
+        conversation = await Conversation.create({
+            ride: rideId,
+            participants: [ride.user._id, ride.matchedWith._id],
+            lastMessageAt: new Date()
         });
+
+        conversation = await Conversation.findById(conversation._id)
+            .populate('participants', participantFields)
+            .populate('ride');
     }
 
-    return chat;
+    return conversation;
 };
 
+module.exports.getMessages = async ({ conversationId, userId, limit = 50 }) => {
+    await getConversationForUser(conversationId, userId);
 
-/* --------------------------------------------------
-   SEND MESSAGE
--------------------------------------------------- */
-module.exports.sendMessage = async ({
-    chatId,
-    senderId,
-    text
-}) => {
+    const parsedLimit = Number(limit) > 0 ? Math.min(Number(limit), 100) : 50;
 
-    if (!chatId || !senderId || !text) {
-        throw new Error('Missing fields');
-    }
-
-    const chat = await Chat.findById(chatId);
-    if (!chat) throw new Error('Chat not found');
-
-    // ensure sender is participant
-    if (!chat.participants.includes(senderId)) {
-        throw new Error('Unauthorized');
-    }
-
-    const message = await Message.create({
-        chat: chatId,
-        sender: senderId,
-        text
-    });
-
-    // update last message
-    chat.lastMessage = message._id;
-    chat.updatedAt = new Date();
-    await chat.save();
-
-    return message;
-};
-
-
-/* --------------------------------------------------
-   GET CHAT MESSAGES
--------------------------------------------------- */
-module.exports.getMessages = async (chatId, limit = 50) => {
-
-    if (!chatId) throw new Error('Chat ID required');
-
-    const messages = await Message.find({ chat: chatId })
-        .populate('sender', 'fullname socketId')
+    const messages = await Message.find({ conversation: conversationId })
+        .populate('sender', participantFields)
+        .populate('receiver', participantFields)
         .sort({ createdAt: -1 })
-        .limit(limit);
+        .limit(parsedLimit);
 
     return messages.reverse();
 };
 
-
-/* --------------------------------------------------
-   DELETE MESSAGE (OPTIONAL SAFETY FEATURE)
--------------------------------------------------- */
-module.exports.deleteMessage = async (messageId, userId) => {
-
-    const message = await Message.findById(messageId);
-    if (!message) throw new Error('Message not found');
-
-    if (message.sender.toString() !== userId.toString()) {
-        throw new Error('Not allowed');
+module.exports.sendMessage = async ({ conversationId, senderId, text }) => {
+    if (!conversationId || !senderId || !text?.trim()) {
+        throw new Error('Conversation and message text are required');
     }
 
-    await message.deleteOne();
-    return true;
+    const conversation = await getConversationForUser(conversationId, senderId);
+    const receiver = conversation.participants.find((participant) => toId(participant._id) !== toId(senderId));
+
+    if (!receiver) {
+        throw new Error('Receiver not found for this conversation');
+    }
+
+    const trimmedText = text.trim();
+
+    const message = await Message.create({
+        conversation: conversationId,
+        sender: senderId,
+        receiver: receiver._id,
+        text: trimmedText,
+        status: receiver.socketId ? 'delivered' : 'sent',
+        deliveredAt: receiver.socketId ? new Date() : undefined
+    });
+
+    await Conversation.findByIdAndUpdate(conversationId, {
+        lastMessageAt: new Date(),
+        lastMessagePreview: trimmedText.slice(0, 280)
+    });
+
+    return Message.findById(message._id)
+        .populate('sender', participantFields)
+        .populate('receiver', participantFields);
+};
+
+module.exports.markConversationAsRead = async ({ conversationId, userId }) => {
+    await getConversationForUser(conversationId, userId);
+
+    const now = new Date();
+
+    const result = await Message.updateMany(
+        {
+            conversation: conversationId,
+            receiver: userId,
+            status: { $ne: 'read' }
+        },
+        {
+            $set: {
+                status: 'read',
+                deliveredAt: now,
+                readAt: now
+            }
+        }
+    );
+
+    return {
+        conversationId,
+        updatedCount: result.modifiedCount || 0,
+        readAt: now
+    };
 };

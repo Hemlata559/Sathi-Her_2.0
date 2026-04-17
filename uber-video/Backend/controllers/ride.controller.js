@@ -13,7 +13,7 @@ module.exports.createRide = async (req, res) => {
         return res.status(400).json({ errors: errors.array() });
     }
 
-    const { pickup, destination, departureTime, mode } = req.body;
+    const { pickup, destination, departureTime, mode, schedule } = req.body;
 
     try {
         const ride = await rideService.createRide({
@@ -21,7 +21,8 @@ module.exports.createRide = async (req, res) => {
             pickup,
             destination,
             departureTime,
-            mode
+            mode,
+            schedule
         });
 
         return res.status(201).json(ride);
@@ -48,6 +49,28 @@ module.exports.verifyMeetingOtp = async (req, res) => {
             verified
         });
 
+    } catch (err) {
+        return res.status(400).json({ message: err.message });
+    }
+};
+
+module.exports.verifyCompanionFaceMatch = async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+        const verification = await rideService.verifyCompanionFaceMatch({
+            rideId: req.body.rideId,
+            verifierUserId: req.user._id,
+            selfieImageUrl: req.body.selfieImageUrl,
+            referenceImageUrl: req.body.referenceImageUrl,
+            similarityScore: req.body.similarityScore,
+            faceVerified: req.body.faceVerified
+        });
+
+        return res.status(200).json(verification);
     } catch (err) {
         return res.status(400).json({ message: err.message });
     }
@@ -99,6 +122,19 @@ module.exports.endJourney = async (req, res) => {
 
         return res.status(200).json(ride);
 
+    } catch (err) {
+        return res.status(400).json({ message: err.message });
+    }
+};
+
+module.exports.getLiveTracking = async (req, res) => {
+    try {
+        const tracking = await rideService.getRideLiveTracking({
+            rideId: req.params.rideId,
+            userId: req.user._id
+        });
+
+        return res.status(200).json(tracking);
     } catch (err) {
         return res.status(400).json({ message: err.message });
     }

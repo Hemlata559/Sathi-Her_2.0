@@ -1,5 +1,27 @@
 const mongoose = require('mongoose');
 
+const rideStatusEnum = [
+    'draft',
+    'scheduled',
+    'matched',
+    'verified',
+    'in_progress',
+    'completed',
+    'cancelled'
+];
+
+const liveLocationSchema = new mongoose.Schema({
+    lat: {
+        type: Number
+    },
+    lng: {
+        type: Number
+    },
+    updatedAt: {
+        type: Date
+    }
+}, { _id: false });
+
 const rideSchema = new mongoose.Schema({
 
     /* ----------------------------------
@@ -27,11 +49,13 @@ const rideSchema = new mongoose.Schema({
     pickup: {
         type: String,
         required: true,
+        trim: true
     },
 
     destination: {
         type: String,
         required: true,
+        trim: true
     },
 
     /* ----------------------------------
@@ -42,6 +66,11 @@ const rideSchema = new mongoose.Schema({
         required: true
     },
 
+    scheduleLabel: {
+        type: String,
+        trim: true
+    },
+
     mode: {
         type: String,
         enum: ['bus', 'metro', 'cab', 'walk', 'mixed'],
@@ -50,12 +79,16 @@ const rideSchema = new mongoose.Schema({
 
     /* ----------------------------------
        JOURNEY STATUS FLOW
-       pending → matched → ongoing → completed
+       draft -> scheduled -> matched -> verified -> in_progress -> completed
     ---------------------------------- */
     status: {
         type: String,
-        enum: ['pending', 'matched', 'ongoing', 'completed', 'cancelled'],
-        default: 'pending',
+        enum: rideStatusEnum,
+        default: 'scheduled'
+    },
+
+    requestWindowEndsAt: {
+        type: Date
     },
 
     /* ----------------------------------
@@ -63,11 +96,11 @@ const rideSchema = new mongoose.Schema({
        Future AI / safety scoring
     ---------------------------------- */
     duration: {
-        type: Number, // seconds
+        type: Number
     },
 
     distance: {
-        type: Number, // meters
+        type: Number
     },
 
     /* ----------------------------------
@@ -76,12 +109,12 @@ const rideSchema = new mongoose.Schema({
     ---------------------------------- */
     meetOtp: {
         type: String,
-        select: false,
+        select: false
     },
 
     meetOtpExpiry: {
         type: Date,
-        select: false,
+        select: false
     },
 
     meetVerified: {
@@ -108,6 +141,11 @@ const rideSchema = new mongoose.Schema({
         default: false
     },
 
+    liveLocations: {
+        user: liveLocationSchema,
+        companion: liveLocationSchema
+    },
+
     anomalyDetected: {
         type: Boolean,
         default: false
@@ -124,5 +162,8 @@ const rideSchema = new mongoose.Schema({
     }
 
 }, { timestamps: true });
+
+rideSchema.index({ user: 1, status: 1, departureTime: 1 });
+rideSchema.index({ matchedWith: 1, status: 1 });
 
 module.exports = mongoose.model('ride', rideSchema);

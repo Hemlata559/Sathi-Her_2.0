@@ -2,6 +2,21 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
+const emergencyContactSchema = new mongoose.Schema({
+    name: {
+        type: String,
+        trim: true
+    },
+    mobile: {
+        type: String,
+        trim: true
+    },
+    relationship: {
+        type: String,
+        trim: true
+    }
+}, { _id: false });
+
 const userSchema = new mongoose.Schema({
 
     /* ----------------------------------
@@ -29,7 +44,8 @@ const userSchema = new mongoose.Schema({
     mobile: {
         type: String,
         unique: true,
-        sparse: true
+        sparse: true,
+        trim: true
     },
 
     password: {
@@ -45,6 +61,39 @@ const userSchema = new mongoose.Schema({
         type: String,
         enum: ['female', 'male', 'other'],
         required: true
+    },
+
+    role: {
+        type: String,
+        enum: ['user', 'admin'],
+        default: 'user'
+    },
+
+    age: {
+        type: Number,
+        min: 18,
+        max: 120
+    },
+
+    collegeName: {
+        type: String,
+        trim: true
+    },
+
+    contactNumber: {
+        type: String,
+        trim: true
+    },
+
+    profileImageUrl: {
+        type: String,
+        trim: true
+    },
+
+    bio: {
+        type: String,
+        trim: true,
+        maxlength: 280
     },
 
     /* ----------------------------------
@@ -88,12 +137,42 @@ const userSchema = new mongoose.Schema({
         max: 100
     },
 
-    emergencyContacts: [
-        {
-            name: String,
-            mobile: String
+    emergencyContacts: [emergencyContactSchema],
+
+    preferences: {
+        maxCompanionDistanceKm: {
+            type: Number,
+            default: 3,
+            min: 0
+        },
+        minPreferredRating: {
+            type: Number,
+            default: 4,
+            min: 0,
+            max: 5
+        },
+        allowsCompanionRequests: {
+            type: Boolean,
+            default: true
         }
-    ],
+    },
+
+    stats: {
+        completedJourneys: {
+            type: Number,
+            default: 0
+        },
+        totalRatings: {
+            type: Number,
+            default: 0
+        },
+        averageRating: {
+            type: Number,
+            default: 0,
+            min: 0,
+            max: 5
+        }
+    },
 
     /* ----------------------------------
        REAL-TIME CONNECTION
@@ -102,7 +181,11 @@ const userSchema = new mongoose.Schema({
         type: String,
     },
 
-}, { timestamps: true });
+}, {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
+});
 
 /* ----------------------------------
    PRE-SAVE HOOK - Remove null mobile
@@ -115,6 +198,35 @@ userSchema.pre('save', function (next) {
         this.email = undefined;
     }
     next();
+});
+
+userSchema.virtual('fullName').get(function () {
+    return {
+        firstName: this.fullname?.firstname || '',
+        lastName: this.fullname?.lastname || ''
+    };
+});
+
+userSchema.virtual('profile').get(function () {
+    return {
+        id: this._id,
+        email: this.email,
+        mobile: this.mobile,
+        fullName: this.fullName,
+        profileImageUrl: this.profileImageUrl,
+        age: this.age,
+        collegeName: this.collegeName,
+        contactNumber: this.contactNumber,
+        emergencyContacts: this.emergencyContacts,
+        isVerified: this.isVerified,
+        idVerified: this.idVerified,
+        faceVerified: this.faceVerified,
+        trustScore: this.trustScore,
+        stats: this.stats,
+        preferences: this.preferences,
+        createdAt: this.createdAt,
+        updatedAt: this.updatedAt
+    };
 });
 
 /* ----------------------------------

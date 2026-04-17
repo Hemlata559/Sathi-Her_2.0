@@ -1,7 +1,16 @@
 import React from 'react'
 
-const ConnectingOverlay = ({ onCancel, companion }) => {
+const statusCopy = {
+  pending: 'Awaiting acceptance. This usually takes less than 2 minutes.',
+  accepted: 'Your request was accepted. Opening the next step now.',
+  declined: 'This request was declined. You can try another companion.',
+  cancelled: 'This companion request has been cancelled.',
+  expired: 'This request expired before it was accepted.'
+}
+
+const ConnectingOverlay = ({ onCancel, companion, requestStatus = 'pending' }) => {
   const avatarUrl = companion?.image || 'https://i.pravatar.cc/100'
+  const canCancel = requestStatus === 'pending'
 
   return (
     <div className="relative w-full h-full">
@@ -22,9 +31,11 @@ const ConnectingOverlay = ({ onCancel, companion }) => {
             </div>
           </div>
 
-          <h2 className="text-2xl font-semibold text-gray-800">Connecting You...</h2>
+          <h2 className="text-2xl font-semibold text-gray-800">
+            {requestStatus === 'accepted' ? 'Request Accepted' : 'Connecting You...'}
+          </h2>
           <p className="text-sm text-gray-500 mt-2">
-            Awaiting Akshita's acceptance. This usually takes &lt; 2 mins.
+            {companion?.name || 'Your companion'}: {statusCopy[requestStatus] || statusCopy.pending}
           </p>
 
           <div className="mt-4 inline-flex items-center gap-3 px-4 py-2 bg-green-50 border border-green-100 rounded-full">
@@ -37,12 +48,14 @@ const ConnectingOverlay = ({ onCancel, companion }) => {
             </div>
           </div>
 
-          <button
-            onClick={onCancel}
-            className="mt-6 w-full bg-red-50 text-red-600 font-medium py-4 rounded-2xl border border-red-100"
-          >
-            Cancel Connection Request
-          </button>
+          {canCancel && (
+            <button
+              onClick={onCancel}
+              className="mt-6 w-full bg-red-50 text-red-600 font-medium py-4 rounded-2xl border border-red-100"
+            >
+              Cancel Connection Request
+            </button>
+          )}
         </div>
       </div>
     </div>

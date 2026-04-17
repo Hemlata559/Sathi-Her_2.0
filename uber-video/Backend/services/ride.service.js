@@ -1,6 +1,9 @@
 const rideModel = require('../models/ride.model');
+const journeyVerificationModel = require('../models/journeyVerification.model');
 const mapService = require('./maps.service');
 const crypto = require('crypto');
+
+const toId = (value) => String(value);
 
 /* --------------------------------------------------
    OTP GENERATOR – used for meeting point verification
@@ -22,6 +25,25 @@ async function getDistanceInfo(pickup, destination) {
 
 module.exports.getDistanceInfo = getDistanceInfo;
 
+async function getRideWithParticipants(rideId) {
+    return rideModel.findById(rideId)
+        .populate('user')
+        .populate('matchedWith');
+}
+
+async function getOrCreateJourneyVerification(rideId) {
+    let verification = await journeyVerificationModel.findOne({ ride: rideId });
+
+    if (!verification) {
+        verification = await journeyVerificationModel.create({
+            ride: rideId,
+            users: []
+        });
+    }
+
+    return verification;
+}
+
 
 /* --------------------------------------------------
    CREATE JOURNEY REQUEST
@@ -33,7 +55,8 @@ module.exports.createRide = async ({
     pickup,
     destination,
     departureTime,
-    mode
+    mode,
+    schedule
 }) => {
 
     if (!user || !pickup || !destination || !departureTime || !mode) {
@@ -50,10 +73,12 @@ module.exports.createRide = async ({
         pickup,
         destination,
         departureTime,
+        scheduleLabel: schedule,
         mode,
-        status: 'pending',
+        status: 'scheduled',
         meetOtp: generateOtp(6),
-        meetOtpExpiry: Date.now() + 20 * 60 * 1000 // 20 min
+        meetOtpExpiry: Date.now() + 20 * 60 * 1000, // 20 min
+        requestWindowEndsAt: Date.now() + 30 * 60 * 1000
     });
 
     return ride;
@@ -83,10 +108,75 @@ module.exports.verifyMeetingOtp = async ({ rideId, otp }) => {
     ride.meetVerified = true;
     ride.meetOtp = null;
     ride.meetOtpExpiry = null;
+    ride.status = 'verified';
 
     await ride.save();
 
+    const verification = await getOrCreateJourneyVerification(rideId);
+    verification.meetOtpVerified = true;
+    verification.verifiedForStart = verification.users.some((entry) => entry.faceVerified);
+    await verification.save();
+
     return true;
+};
+
+module.exports.verifyCompanionFaceMatch = async ({
+    rideId,
+    verifierUserId,
+    selfieImageUrl,
+    referenceImageUrl,
+    similarityScore,
+    faceVerified
+}) => {
+    if (!rideId || !verifierUserId || !selfieImageUrl || !referenceImageUrl) {
+        throw new Error('Ride, verifier and face verification images are required');
+    }
+
+    const ride = await getRideWithParticipants(rideId);
+
+    if (!ride) {
+        throw new Error('Journey not found');
+    }
+
+    if (!ride.matchedWith) {
+        throw new Error('Face verification is available only after a companion match');
+    }
+
+    const verifierRole = getParticipantRole(ride, verifierUserId);
+    const verifiedUser = verifierRole === 'user' ? ride.matchedWith : ride.user;
+
+    const verification = await getOrCreateJourneyVerification(rideId);
+    const existingIndex = verification.users.findIndex((entry) => toId(entry.user) === toId(verifiedUser._id));
+
+    const payload = {
+        user: verifiedUser._id,
+        verifiedBy: verifierUserId,
+        selfieImageUrl,
+        referenceImageUrl,
+        similarityScore,
+        faceVerified: Boolean(faceVerified),
+        verifiedAt: faceVerified ? new Date() : undefined
+    };
+
+    if (existingIndex >= 0) {
+        verification.users[existingIndex] = {
+            ...verification.users[existingIndex].toObject(),
+            ...payload
+        };
+    } else {
+        verification.users.push(payload);
+    }
+
+    verification.verifiedForStart = verification.meetOtpVerified && verification.users.some((entry) => entry.faceVerified);
+    await verification.save();
+
+    return {
+        rideId: ride._id,
+        verifiedUser: verifiedUser._id,
+        similarityScore,
+        faceVerified: Boolean(faceVerified),
+        verifiedForStart: verification.verifiedForStart
+    };
 };
 
 
@@ -96,20 +186,24 @@ module.exports.verifyMeetingOtp = async ({ rideId, otp }) => {
 -------------------------------------------------- */
 module.exports.startJourney = async ({ rideId }) => {
 
-    const ride = await rideModel.findById(rideId)
-        .populate('user')
-        .populate('matchedWith');
+    const ride = await getRideWithParticipants(rideId);
 
     if (!ride) throw new Error('Journey not found');
 
     if (!ride.meetVerified)
         throw new Error('Meeting verification pending');
 
-    if (ride.status !== 'matched')
+    const verification = await journeyVerificationModel.findOne({ ride: rideId });
+
+    if (!verification?.verifiedForStart)
+        throw new Error('Companion face verification must be completed before starting the journey');
+
+    if (!['matched', 'verified'].includes(ride.status))
         throw new Error('Journey not ready');
 
-    ride.status = 'ongoing';
+    ride.status = 'in_progress';
     ride.startedAt = new Date();
+    ride.liveTracking = true;
 
     await ride.save();
 
@@ -127,15 +221,99 @@ module.exports.endJourney = async ({ rideId }) => {
 
     if (!ride) throw new Error('Journey not found');
 
-    if (ride.status !== 'ongoing')
+    if (ride.status !== 'in_progress')
         throw new Error('Journey not active');
 
     ride.status = 'completed';
     ride.completedAt = new Date();
+    ride.liveTracking = false;
 
     await ride.save();
 
     return ride;
+};
+
+function getParticipantRole(ride, userId) {
+    if (toId(ride.user) === toId(userId)) {
+        return 'user';
+    }
+
+    if (ride.matchedWith && toId(ride.matchedWith) === toId(userId)) {
+        return 'companion';
+    }
+
+    throw new Error('You are not part of this journey');
+}
+
+module.exports.getRideLiveTracking = async ({ rideId, userId }) => {
+    const ride = await rideModel.findById(rideId)
+        .populate('user', 'fullname fullName profileImageUrl')
+        .populate('matchedWith', 'fullname fullName profileImageUrl');
+
+    if (!ride) {
+        throw new Error('Journey not found');
+    }
+
+    const role = getParticipantRole(ride, userId);
+
+    return {
+        rideId: ride._id,
+        role,
+        status: ride.status,
+        liveTracking: ride.liveTracking,
+        liveLocations: ride.liveLocations || {},
+        participants: {
+            user: ride.user,
+            companion: ride.matchedWith
+        }
+    };
+};
+
+module.exports.updateRideLiveLocation = async ({ rideId, userId, location }) => {
+    if (!location || typeof location.lat !== 'number' || typeof location.lng !== 'number') {
+        throw new Error('Valid latitude and longitude are required');
+    }
+
+    const ride = await rideModel.findById(rideId)
+        .populate('user', 'fullname fullName profileImageUrl socketId')
+        .populate('matchedWith', 'fullname fullName profileImageUrl socketId');
+
+    if (!ride) {
+        throw new Error('Journey not found');
+    }
+
+    if (!['matched', 'verified', 'in_progress'].includes(ride.status)) {
+        throw new Error('Live location is available only for matched or active journeys');
+    }
+
+    const role = getParticipantRole(ride, userId);
+
+    ride.liveLocations = {
+        ...(ride.liveLocations || {}),
+        [role]: {
+            lat: location.lat,
+            lng: location.lng,
+            updatedAt: new Date()
+        }
+    };
+
+    if (!ride.liveTracking) {
+        ride.liveTracking = true;
+    }
+
+    await ride.save();
+
+    return {
+        rideId: ride._id,
+        role,
+        status: ride.status,
+        liveTracking: ride.liveTracking,
+        liveLocations: ride.liveLocations,
+        participants: {
+            user: ride.user,
+            companion: ride.matchedWith
+        }
+    };
 };
 
 /* --------------------------------------------------

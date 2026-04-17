@@ -2,8 +2,7 @@ import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import axios from 'axios'
 import { useNavigate } from 'react-router-dom'
-
-console.log(import.meta.env.VITE_BASE_URL)
+import API_BASE_URL from '../utils/api'
 
 const ConfirmRidePopUp = (props) => {
     const [ otp, setOtp ] = useState('')
@@ -12,7 +11,7 @@ const ConfirmRidePopUp = (props) => {
     const submitHander = async (e) => {
         e.preventDefault()
 
-        const response = await axios.get(`${import.meta.env.VITE_BASE_URL}/rides/start-ride`, {
+        const response = await axios.get(`${API_BASE_URL}/rides/start-ride`, {
             params: {
                 rideId: props.ride._id,
                 otp: otp

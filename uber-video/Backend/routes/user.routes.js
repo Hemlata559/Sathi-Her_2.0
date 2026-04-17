@@ -60,6 +60,16 @@ router.post(
 
 
 /* --------------------------------------------------
+   GET AVAILABLE COMPANIONS
+-------------------------------------------------- */
+router.get(
+    '/companions',
+    authMiddleware.authVerifiedFemale,
+    userController.getAvailableCompanions
+);
+
+
+/* --------------------------------------------------
    GET PROFILE
 -------------------------------------------------- */
 router.get(

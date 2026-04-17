@@ -14,7 +14,7 @@ module.exports.registerUser = async (req, res) => {
             return res.status(400).json({ errors: errors.array() });
         }
 
-        const { fullname, email, mobile, password, gender, age, collegeName, contactNumber, emergencyContact } = req.body;
+        const { fullname, email, mobile, password, gender, age, collegeName, contactNumber, emergencyContact, profileImageUrl } = req.body;
 
         // Trim email and mobile
         const trimmedEmail = email ? email.trim().toLowerCase() : null;
@@ -42,18 +42,19 @@ module.exports.registerUser = async (req, res) => {
         const userData = {
             firstname: fullname.firstname,
             lastname: fullname.lastname,
+            mobile: trimmedMobile,
             password: hashedPassword,
             gender: gender || 'female', // Default to female
             age,
             collegeName,
             contactNumber,
             emergencyContact,
+            profileImageUrl,
             isVerified: true // Auto-verify all new registrations
         };
 
         // Only add email and mobile if they exist
         if (trimmedEmail) userData.email = trimmedEmail;
-        if (trimmedMobile) userData.mobile = trimmedMobile;
 
         const user = await userService.createUser(userData);
 
@@ -91,10 +92,12 @@ module.exports.loginUser = async (req, res) => {
     }
 
     const { email, mobile, password } = req.body;
+    const normalizedEmail = email ? email.trim().toLowerCase() : null;
+    const normalizedMobile = mobile ? mobile.trim() : null;
 
     const user = await userModel
         .findOne({
-            $or: [{ email }, { mobile }]
+            $or: [{ email: normalizedEmail }, { mobile: normalizedMobile }]
         })
         .select('+password');
 
@@ -125,7 +128,37 @@ module.exports.loginUser = async (req, res) => {
    GET PROFILE
 -------------------------------------------------- */
 module.exports.getUserProfile = async (req, res) => {
-    res.status(200).json(req.user);
+    res.status(200).json({
+        ...req.user.toObject(),
+        fullName: req.user.fullName,
+        profile: req.user.profile
+    });
+};
+
+
+/* --------------------------------------------------
+   GET AVAILABLE COMPANIONS
+-------------------------------------------------- */
+module.exports.getAvailableCompanions = async (req, res) => {
+    try {
+        const companions = await userModel.find({
+            _id: { $ne: req.user._id },
+            gender: 'female',
+            isVerified: true,
+            'preferences.allowsCompanionRequests': true
+        })
+            .select('fullname profileImageUrl stats trustScore collegeName isVerified preferences')
+            .sort({ 'stats.averageRating': -1, trustScore: -1, createdAt: -1 })
+            .limit(20);
+
+        return res.status(200).json(companions.map((companion) => ({
+            ...companion.toObject(),
+            fullName: companion.fullName,
+            profile: companion.profile
+        })));
+    } catch (error) {
+        return res.status(500).json({ message: error.message });
+    }
 };
 
 
